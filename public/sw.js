@@ -20,8 +20,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "/favicon.svg",
-      badge: "/favicon.svg",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       tag: data.tag || undefined,
       data: { url: data.url || "/painel/notificacoes" },
     })

@@ -48,7 +48,8 @@
       "Bash(node scripts/validate_palette.js \"#c9a24a,#38bdf8,#a78bfa\" --mode dark)",
       "mcp__claude_ai_Supabase__list_extensions",
       "mcp__claude_ai_Supabase__deploy_edge_function",
-      "mcp__claude_ai_Supabase__get_advisors"
+      "mcp__claude_ai_Supabase__get_advisors",
+      "Bash(npm install *)"
     ]
   }
 }
