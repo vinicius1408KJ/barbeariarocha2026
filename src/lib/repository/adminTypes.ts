@@ -4,6 +4,7 @@ import type {
   AppNotification,
   Barber,
   BlockedSlot,
+  BusinessHours,
   CardFees,
   CardType,
   CashFlowBucket,
@@ -36,6 +37,19 @@ export interface AdminRepository {
   listBarbers(): Promise<Barber[]>
   listServices(): Promise<Service[]>
   updateCommissionRate(barberId: string, percent: number): Promise<void>
+
+  // Services management
+  listAllServices(): Promise<Service[]>
+  createService(input: { name: string; durationMinutes: number; priceCents: number }): Promise<Service>
+  updateService(
+    id: string,
+    patch: Partial<{ name: string; durationMinutes: number; priceCents: number; active: boolean }>
+  ): Promise<void>
+  deleteService(id: string): Promise<"deleted" | "deactivated">
+
+  // Business hours
+  listBusinessHours(): Promise<BusinessHours[]>
+  saveBusinessHours(days: BusinessHours[]): Promise<void>
   uploadAvatar(barberId: string, file: File): Promise<string>
   updateBarberAvatar(barberId: string, avatarUrl: string | null): Promise<void>
 

@@ -7,6 +7,7 @@ import type {
   AppNotification,
   Barber,
   BlockedSlot,
+  BusinessHours,
   CardFees,
   CardType,
   CashFlowBucket,
@@ -622,6 +623,114 @@ class SupabaseAdminRepository implements AdminRepository {
       .update({ avatar_url: avatarUrl })
       .eq("id", barberId)
     if (error) throw error
+  }
+
+  // ── Services management ────────────────────────────────────────
+
+  async listAllServices(): Promise<Service[]> {
+    const { data, error } = await this.client
+      .from("services")
+      .select("*")
+      .order("sort_order", { ascending: true })
+    if (error) throw error
+    return (data as ServiceRow[]).map(mapService)
+  }
+
+  async createService(input: {
+    name: string
+    durationMinutes: number
+    priceCents: number
+  }): Promise<Service> {
+    // Place new service at the end.
+    const { data: last } = await this.client
+      .from("services")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrder = (last?.sort_order ?? -1) + 1
+
+    const { data, error } = await this.client
+      .from("services")
+      .insert({
+        name: input.name,
+        duration_minutes: input.durationMinutes,
+        price_cents: input.priceCents,
+        sort_order: nextOrder,
+      })
+      .select("*")
+      .single()
+    if (error) throw error
+    return mapService(data as ServiceRow)
+  }
+
+  async updateService(
+    id: string,
+    patch: Partial<{ name: string; durationMinutes: number; priceCents: number; active: boolean }>
+  ): Promise<void> {
+    const row: Record<string, unknown> = {}
+    if (patch.name !== undefined) row.name = patch.name
+    if (patch.durationMinutes !== undefined) row.duration_minutes = patch.durationMinutes
+    if (patch.priceCents !== undefined) row.price_cents = patch.priceCents
+    if (patch.active !== undefined) row.active = patch.active
+    const { error } = await this.client.from("services").update(row).eq("id", id)
+    if (error) throw error
+  }
+
+  // Hard-delete when the service was never used; otherwise deactivate it to
+  // preserve appointment/transaction history (service_id is a FK).
+  async deleteService(id: string): Promise<"deleted" | "deactivated"> {
+    const { error } = await this.client.from("services").delete().eq("id", id)
+    if (!error) return "deleted"
+    // 23503 = foreign_key_violation (service referenced by appointments)
+    if ((error as { code?: string }).code === "23503") {
+      await this.updateService(id, { active: false })
+      return "deactivated"
+    }
+    throw error
+  }
+
+  // ── Business hours ─────────────────────────────────────────────
+
+  async listBusinessHours(): Promise<BusinessHours[]> {
+    const { data, error } = await this.client
+      .from("business_hours")
+      .select("day_of_week, open_time, close_time, slot_granularity_minutes")
+      .is("barber_id", null)
+      .order("day_of_week", { ascending: true })
+    if (error) throw error
+    return (data as {
+      day_of_week: number
+      open_time: string
+      close_time: string
+      slot_granularity_minutes: number
+    }[]).map((r) => ({
+      dayOfWeek: r.day_of_week,
+      openTime: r.open_time.slice(0, 5),
+      closeTime: r.close_time.slice(0, 5),
+      slotGranularityMinutes: r.slot_granularity_minutes,
+    }))
+  }
+
+  // Replaces the shop-wide schedule: only the provided (open) days remain.
+  async saveBusinessHours(days: BusinessHours[]): Promise<void> {
+    const { error: delErr } = await this.client
+      .from("business_hours")
+      .delete()
+      .is("barber_id", null)
+    if (delErr) throw delErr
+
+    if (days.length === 0) return
+    const { error: insErr } = await this.client.from("business_hours").insert(
+      days.map((d) => ({
+        barber_id: null,
+        day_of_week: d.dayOfWeek,
+        open_time: d.openTime,
+        close_time: d.closeTime,
+        slot_granularity_minutes: d.slotGranularityMinutes,
+      }))
+    )
+    if (insErr) throw insErr
   }
 
   // ── Settings — card fees ───────────────────────────────────────

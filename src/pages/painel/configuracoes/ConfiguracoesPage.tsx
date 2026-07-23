@@ -15,6 +15,8 @@ import {
 import { adminRepository } from "@/lib/repository/adminRepository"
 import { useStaffSession } from "@/lib/auth/StaffSessionContext"
 import { formatPriceBRL } from "@/lib/utils"
+import { ServicesSection } from "./ServicesSection"
+import { BusinessHoursSection } from "./BusinessHoursSection"
 import type { Subscription } from "@/lib/types"
 
 // "2.91" (number) → "2,91" (pt-BR input value)
@@ -362,6 +364,12 @@ export function ConfiguracoesPage() {
               )}
             </div>
           </section>
+
+          {/* Services */}
+          <ServicesSection />
+
+          {/* Business hours */}
+          <BusinessHoursSection />
 
           {/* Commission */}
           <section>
