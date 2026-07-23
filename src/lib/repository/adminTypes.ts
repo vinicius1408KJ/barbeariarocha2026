@@ -15,6 +15,7 @@ import type {
   Expense,
   ExpenseCategory,
   PaymentMethod,
+  Product,
   Review,
   SaleType,
   Service,
@@ -35,6 +36,16 @@ export interface AdminRepository {
   // Catalog
   listBarbers(): Promise<Barber[]>
   listServices(): Promise<Service[]>
+
+  // Products + inventory
+  listProducts(): Promise<Product[]>
+  createProduct(input: { name: string; priceCents: number; stock: number }): Promise<Product>
+  updateProduct(
+    id: string,
+    patch: Partial<{ name: string; priceCents: number; stock: number; active: boolean }>
+  ): Promise<void>
+  deleteProduct(id: string): Promise<void>
+  sellProduct(input: { productId: string; qty: number; paymentMethod: PaymentMethod }): Promise<void>
 
   // Services management
   listAllServices(): Promise<Service[]>
@@ -158,5 +169,10 @@ export interface AdminRepository {
   // Reports
   getCashFlow(range: DateRange, granularity: CashFlowGranularity): Promise<CashFlowBucket[]>
   getDRE(range: DateRange): Promise<DRE>
+  // Personal earnings for one barber (service sales only) in the period.
+  getBarberEarnings(
+    barberId: string,
+    range: DateRange
+  ): Promise<{ serviceRevenueCents: number; appointments: number; ticketAvgCents: number }>
   getCashForecast(): Promise<{ subscriptionsMonthlyCents: number; upcomingAppointmentsCents: number }>
 }

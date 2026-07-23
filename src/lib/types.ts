@@ -15,6 +15,15 @@ export type Barber = {
   active: boolean
 }
 
+export type Product = {
+  id: string
+  name: string
+  priceCents: number
+  stock: number
+  active: boolean
+  sortOrder: number
+}
+
 export type AppointmentStatus =
   | "scheduled"
   | "confirmed"

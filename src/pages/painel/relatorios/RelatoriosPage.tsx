@@ -1,44 +1,80 @@
-import { useCallback, useEffect, useState } from "react"
-import { format } from "date-fns"
-import { Download, FileSpreadsheet, TrendingDown, TrendingUp } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  addDays,
+  addMonths,
+  addYears,
+  endOfMonth,
+  endOfYear,
+  format,
+  startOfMonth,
+  startOfYear,
+} from "date-fns"
+import { ptBR } from "date-fns/locale"
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  Scissors,
+  ShoppingBag,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, formatPriceBRL } from "@/lib/utils"
 import { adminRepository } from "@/lib/repository/adminRepository"
+import { useStaffSession } from "@/lib/auth/StaffSessionContext"
 import type { DateRange } from "@/lib/repository/adminTypes"
 import { EXPENSE_CATEGORY_LABEL, SALE_TYPE_LABEL } from "@/lib/financeLabels"
+import { PAYMENT_LABEL } from "@/lib/statusLabels"
 import { exportPdf, exportXlsx } from "@/lib/export/exportReport"
-import type { CashFlowBucket, DRE, ExpenseCategory, SaleType } from "@/lib/types"
+import type { Barber, CashFlowBucket, DRE, ExpenseCategory, SaleType, Transaction } from "@/lib/types"
 
-type Period = "day" | "week" | "month"
+type BarberEarnings = { serviceRevenueCents: number; appointments: number; ticketAvgCents: number }
 
-function rangeFor(period: Period): DateRange {
-  const now = new Date()
-  if (period === "day") {
-    const d = format(now, "yyyy-MM-dd")
+type Gran = "day" | "month" | "year"
+
+const GRAN_LABEL: Record<Gran, string> = { day: "Dia", month: "Mês", year: "Ano" }
+
+function rangeFor(gran: Gran, ref: Date): DateRange {
+  if (gran === "day") {
+    const d = format(ref, "yyyy-MM-dd")
     return { from: d, to: d }
   }
-  if (period === "week") {
-    const day = now.getDay()
-    const start = new Date(now)
-    start.setDate(now.getDate() - day)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { from: format(start, "yyyy-MM-dd"), to: format(end, "yyyy-MM-dd") }
+  if (gran === "month") {
+    return { from: format(startOfMonth(ref), "yyyy-MM-dd"), to: format(endOfMonth(ref), "yyyy-MM-dd") }
   }
-  return {
-    from: format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd"),
-    to: format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd"),
-  }
+  return { from: format(startOfYear(ref), "yyyy-MM-dd"), to: format(endOfYear(ref), "yyyy-MM-dd") }
 }
 
-const PERIOD_LABEL: Record<Period, string> = { day: "Dia", week: "Semana", month: "Mês" }
+function shiftRef(gran: Gran, ref: Date, dir: 1 | -1): Date {
+  if (gran === "day") return addDays(ref, dir)
+  if (gran === "month") return addMonths(ref, dir)
+  return addYears(ref, dir)
+}
+
+function periodLabel(gran: Gran, ref: Date): string {
+  if (gran === "day") return format(ref, "dd/MM/yyyy")
+  if (gran === "month") {
+    const s = format(ref, "MMMM yyyy", { locale: ptBR })
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+  return format(ref, "yyyy")
+}
 
 export function RelatoriosPage() {
-  const [period, setPeriod] = useState<Period>("month")
+  const { session } = useStaffSession()
+  const [gran, setGran] = useState<Gran>("month")
+  const [ref, setRef] = useState<Date>(new Date())
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [dre, setDre] = useState<DRE | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowBucket[]>([])
+  const [earnings, setEarnings] = useState<BarberEarnings | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [barbers, setBarbers] = useState<Barber[]>([])
   const [forecast, setForecast] = useState<{
     subscriptionsMonthlyCents: number
     upcomingAppointmentsCents: number
@@ -46,20 +82,27 @@ export function RelatoriosPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const range = rangeFor(period)
+    const range = rangeFor(gran, ref)
+    const cfGran = gran === "year" ? "month" : "day"
     try {
-      const [d, cf, fc] = await Promise.all([
+      const [d, cf, fc, ea, txs, bbs] = await Promise.all([
         adminRepository.getDRE(range),
-        adminRepository.getCashFlow(range, "day"),
+        adminRepository.getCashFlow(range, cfGran),
         adminRepository.getCashForecast(),
+        adminRepository.getBarberEarnings(session!.barberId, range),
+        adminRepository.listTransactions(range),
+        adminRepository.listBarbers(),
       ])
       setDre(d)
       setCashFlow(cf)
       setForecast(fc)
+      setEarnings(ea)
+      setTransactions(txs)
+      setBarbers(bbs)
     } finally {
       setLoading(false)
     }
-  }, [period])
+  }, [gran, ref, session])
 
   useEffect(() => {
     load()
@@ -84,10 +127,13 @@ export function RelatoriosPage() {
       { item: "Taxas de cartão", valor: formatPriceBRL(dre.cardFeesTotalCents) },
       { item: "LUCRO", valor: formatPriceBRL(dre.profitCents) },
     ]
-    const subtitle = `Período: ${PERIOD_LABEL[period]}`
+    const subtitle = `Período: ${periodLabel(gran, ref)}`
     if (kind === "pdf") exportPdf("DRE", subtitle, cols, rows)
     else exportXlsx("DRE", cols, rows)
   }
+
+  const barberName = (id: string | null) =>
+    id ? (barbers.find((b) => b.id === id)?.name ?? "") : ""
 
   // Derived figures for the profit hero + charts
   const costsCents = dre ? dre.expensesTotalCents + dre.cardFeesTotalCents : 0
@@ -113,21 +159,78 @@ export function RelatoriosPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-6">
-      {/* Period selector */}
-      <div className="mb-5 flex gap-1 rounded-xl bg-card p-1">
-        {(["day", "week", "month"] as Period[]).map((p) => (
+      {/* Granularity selector */}
+      <div className="mb-3 flex gap-1 rounded-xl bg-card p-1">
+        {(["day", "month", "year"] as Gran[]).map((g) => (
           <button
-            key={p}
+            key={g}
             type="button"
-            onClick={() => setPeriod(p)}
+            onClick={() => setGran(g)}
             className={cn(
               "flex-1 rounded-lg py-2 text-xs font-semibold tracking-wide uppercase transition-colors",
-              period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              gran === g ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             )}
           >
-            {PERIOD_LABEL[p]}
+            {GRAN_LABEL[g]}
           </button>
         ))}
+      </div>
+
+      {/* Period navigation */}
+      <div className="mb-5 flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-2">
+        <button
+          type="button"
+          onClick={() => setRef((r) => shiftRef(gran, r, -1))}
+          aria-label="Anterior"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const el = dateInputRef.current
+            if (!el) return
+            if (typeof el.showPicker === "function") {
+              try {
+                el.showPicker()
+                return
+              } catch {
+                /* fall through */
+              }
+            }
+            el.focus()
+            el.click()
+          }}
+          className="flex flex-1 flex-col items-center rounded-lg py-1 transition-colors hover:bg-accent active:scale-[0.98]"
+        >
+          <span className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
+            <CalendarDays className="size-4 text-primary" />
+            {periodLabel(gran, ref)}
+          </span>
+          <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            escolher a data
+          </span>
+        </button>
+        <input
+          ref={dateInputRef}
+          type="date"
+          value={format(ref, "yyyy-MM-dd")}
+          onChange={(e) => e.target.value && setRef(new Date(`${e.target.value}T00:00:00`))}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+
+        <button
+          type="button"
+          onClick={() => setRef((r) => shiftRef(gran, r, 1))}
+          aria-label="Próximo"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+        >
+          <ChevronRight className="size-5" />
+        </button>
       </div>
 
       {loading || !dre ? (
@@ -138,11 +241,47 @@ export function RelatoriosPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          {/* Profit hero */}
+          {/* Personal earnings (only the logged-in barber's own service sales) */}
+          {earnings && (
+            <section>
+              <p className="mb-2 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+                Meu faturamento · {session?.barberName}
+              </p>
+              <div className="rounded-2xl border border-primary/25 bg-primary/[0.07] p-5">
+                <div className="flex items-center gap-2 text-primary">
+                  <Scissors className="size-4" />
+                  <span className="text-[11px] font-semibold tracking-wide uppercase">
+                    {periodLabel(gran, ref)} · só o seu
+                  </span>
+                </div>
+                <p className="mt-1 font-display text-4xl leading-none tracking-tight text-foreground tabular-nums">
+                  {formatPriceBRL(earnings.serviceRevenueCents)}
+                </p>
+                <div className="mt-3 flex gap-6">
+                  <div>
+                    <p className="text-lg font-semibold text-foreground tabular-nums">
+                      {earnings.appointments}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground uppercase">
+                      {earnings.appointments === 1 ? "atendimento" : "atendimentos"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-foreground tabular-nums">
+                      {formatPriceBRL(earnings.ticketAvgCents)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground uppercase">ticket médio</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Shop-wide result */}
           <section>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
-                Lucro do {PERIOD_LABEL[period].toLowerCase()}
+                Barbearia · Lucro · {periodLabel(gran, ref)}
               </p>
               <div className="flex gap-1">
                 <Button size="xs" variant="ghost" onClick={() => exportDre("pdf")}>
@@ -269,6 +408,59 @@ export function RelatoriosPage() {
               </div>
             </section>
           )}
+
+          {/* Detailed list of everything sold in the period */}
+          <section>
+            <p className="mb-2 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+              Atendimentos e vendas · {periodLabel(gran, ref)}
+            </p>
+            {transactions.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+                Nada registrado neste período.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {transactions.map((t) => {
+                  const isProduct = t.saleType === "produto"
+                  const who = t.saleType === "servico" ? barberName(t.barberId) : ""
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5"
+                    >
+                      <span
+                        className={cn(
+                          "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                          isProduct
+                            ? "bg-sky-500/15 text-sky-400"
+                            : "bg-primary/15 text-primary"
+                        )}
+                      >
+                        {isProduct ? (
+                          <ShoppingBag className="size-4" />
+                        ) : (
+                          <Scissors className="size-4" />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {t.description}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {SALE_TYPE_LABEL[t.saleType]}
+                          {who && ` · ${who}`} · {PAYMENT_LABEL[t.paymentMethod]} ·{" "}
+                          {format(new Date(t.occurredAt), "dd/MM HH:mm")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-primary tabular-nums">
+                        {formatPriceBRL(t.amountCents)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
           {/* Cash flow */}
           {cashFlow.some((b) => b.revenueCents > 0 || b.expenseCents > 0) && (

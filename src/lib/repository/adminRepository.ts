@@ -18,6 +18,7 @@ import type {
   Expense,
   ExpenseCategory,
   PaymentMethod,
+  Product,
   Review,
   SaleType,
   Service,
@@ -120,6 +121,26 @@ function mapNotification(row: NotificationRow): AppNotification {
     body: row.body,
     read: row.read,
     createdAt: row.created_at,
+  }
+}
+
+type ProductRow = {
+  id: string
+  name: string
+  price_cents: number
+  stock: number
+  active: boolean
+  sort_order: number
+}
+
+function mapProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    name: row.name,
+    priceCents: row.price_cents,
+    stock: row.stock,
+    active: row.active,
+    sortOrder: row.sort_order,
   }
 }
 
@@ -616,6 +637,76 @@ class SupabaseAdminRepository implements AdminRepository {
     if (error) throw error
   }
 
+  // ── Products + inventory ───────────────────────────────────────
+
+  async listProducts(): Promise<Product[]> {
+    const { data, error } = await this.client
+      .from("products")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+    if (error) throw error
+    return (data as ProductRow[]).map(mapProduct)
+  }
+
+  async createProduct(input: {
+    name: string
+    priceCents: number
+    stock: number
+  }): Promise<Product> {
+    const { data: last } = await this.client
+      .from("products")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrder = (last?.sort_order ?? -1) + 1
+
+    const { data, error } = await this.client
+      .from("products")
+      .insert({
+        name: input.name,
+        price_cents: input.priceCents,
+        stock: input.stock,
+        sort_order: nextOrder,
+      })
+      .select("*")
+      .single()
+    if (error) throw error
+    return mapProduct(data as ProductRow)
+  }
+
+  async updateProduct(
+    id: string,
+    patch: Partial<{ name: string; priceCents: number; stock: number; active: boolean }>
+  ): Promise<void> {
+    const row: Record<string, unknown> = {}
+    if (patch.name !== undefined) row.name = patch.name
+    if (patch.priceCents !== undefined) row.price_cents = patch.priceCents
+    if (patch.stock !== undefined) row.stock = Math.max(0, patch.stock)
+    if (patch.active !== undefined) row.active = patch.active
+    const { error } = await this.client.from("products").update(row).eq("id", id)
+    if (error) throw error
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    const { error } = await this.client.from("products").delete().eq("id", id)
+    if (error) throw error
+  }
+
+  async sellProduct(input: {
+    productId: string
+    qty: number
+    paymentMethod: PaymentMethod
+  }): Promise<void> {
+    const { error } = await this.client.rpc("sell_product", {
+      p_product_id: input.productId,
+      p_qty: input.qty,
+      p_payment_method: input.paymentMethod,
+    })
+    if (error) throw error
+  }
+
   // ── Services management ────────────────────────────────────────
 
   async listAllServices(): Promise<Service[]> {
@@ -949,6 +1040,18 @@ class SupabaseAdminRepository implements AdminRepository {
         expenseCents: v.expense,
         netCents: v.revenue - v.expense,
       }))
+  }
+
+  async getBarberEarnings(
+    barberId: string,
+    range: DateRange
+  ): Promise<{ serviceRevenueCents: number; appointments: number; ticketAvgCents: number }> {
+    const transactions = await this.listTransactions(range)
+    const mine = transactions.filter((t) => t.saleType === "servico" && t.barberId === barberId)
+    const serviceRevenueCents = mine.reduce((s, t) => s + t.amountCents, 0)
+    const appointments = mine.length
+    const ticketAvgCents = appointments ? Math.round(serviceRevenueCents / appointments) : 0
+    return { serviceRevenueCents, appointments, ticketAvgCents }
   }
 
   async getDRE(range: DateRange): Promise<DRE> {

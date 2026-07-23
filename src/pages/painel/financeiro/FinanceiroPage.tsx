@@ -3,17 +3,19 @@ import { cn } from "@/lib/utils"
 import { ExpensesTab } from "./ExpensesTab"
 import { CashTab } from "./CashTab"
 import { SalesTab } from "./SalesTab"
+import { ProductsTab } from "./ProductsTab"
 
-type Tab = "despesas" | "caixa" | "vendas"
+type Tab = "despesas" | "caixa" | "vendas" | "produtos"
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "despesas", label: "Despesas" },
   { key: "vendas", label: "Vendas" },
+  { key: "produtos", label: "Produtos" },
+  { key: "despesas", label: "Despesas" },
   { key: "caixa", label: "Caixa" },
 ]
 
 export function FinanceiroPage() {
-  const [tab, setTab] = useState<Tab>("despesas")
+  const [tab, setTab] = useState<Tab>("vendas")
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-6">
@@ -33,8 +35,9 @@ export function FinanceiroPage() {
         ))}
       </div>
 
-      {tab === "despesas" && <ExpensesTab />}
       {tab === "vendas" && <SalesTab />}
+      {tab === "produtos" && <ProductsTab />}
+      {tab === "despesas" && <ExpensesTab />}
       {tab === "caixa" && <CashTab />}
     </div>
   )
