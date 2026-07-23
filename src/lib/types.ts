@@ -100,7 +100,6 @@ export type ExpenseCategory =
   | "aluguel"
   | "utilidades"
   | "produtos"
-  | "comissoes"
   | "marketing"
   | "manutencao"
   | "impostos"
@@ -181,17 +180,8 @@ export type DRE = {
   revenueTotalCents: number
   expensesByCategory: Record<ExpenseCategory, number>
   expensesTotalCents: number
-  commissionsTotalCents: number
   cardFeesTotalCents: number
   profitCents: number
-}
-
-export type CommissionSummary = {
-  barberId: string
-  barberName: string
-  serviceRevenueCents: number
-  commissionRatePercent: number
-  commissionCents: number
 }
 
 export type TimeSlot = {

@@ -14,7 +14,6 @@ import type {
   CashMovement,
   CashMovementType,
   ClientHistory,
-  CommissionSummary,
   DRE,
   Expense,
   ExpenseCategory,
@@ -591,14 +590,6 @@ class SupabaseAdminRepository implements AdminRepository {
     if (error) throw error
   }
 
-  async updateCommissionRate(barberId: string, percent: number): Promise<void> {
-    const { error } = await this.client
-      .from("barbers")
-      .update({ commission_rate_percent: percent })
-      .eq("id", barberId)
-    if (error) throw error
-  }
-
   // Uploads a photo to the public "avatars" bucket, saves the URL on the
   // barber, and returns the public URL. A per-barber path keeps one photo
   // each and upsert overwrites the previous one.
@@ -961,10 +952,9 @@ class SupabaseAdminRepository implements AdminRepository {
   }
 
   async getDRE(range: DateRange): Promise<DRE> {
-    const [transactions, expenses, commissions] = await Promise.all([
+    const [transactions, expenses] = await Promise.all([
       this.listTransactions(range),
       this.listExpenses(range),
-      this.getCommissions(range),
     ])
 
     const revenueByType: Record<SaleType, number> = { servico: 0, produto: 0, assinatura: 0 }
@@ -975,61 +965,27 @@ class SupabaseAdminRepository implements AdminRepository {
       aluguel: 0,
       utilidades: 0,
       produtos: 0,
-      comissoes: 0,
       marketing: 0,
       manutencao: 0,
       impostos: 0,
       outros: 0,
     }
-    for (const e of expenses) expensesByCategory[e.category] += e.amountCents
+    for (const e of expenses) {
+      if (e.category in expensesByCategory) expensesByCategory[e.category] += e.amountCents
+    }
     const expensesTotalCents = expenses.reduce((s, e) => s + e.amountCents, 0)
 
-    const commissionsTotalCents = commissions.reduce((s, c) => s + c.commissionCents, 0)
     const cardFeesTotalCents = transactions.reduce((s, t) => s + (t.feeCents ?? 0), 0)
-    const profitCents =
-      revenueTotalCents - expensesTotalCents - commissionsTotalCents - cardFeesTotalCents
+    const profitCents = revenueTotalCents - expensesTotalCents - cardFeesTotalCents
 
     return {
       revenueByType,
       revenueTotalCents,
       expensesByCategory,
       expensesTotalCents,
-      commissionsTotalCents,
       cardFeesTotalCents,
       profitCents,
     }
-  }
-
-  async getCommissions(range: DateRange): Promise<CommissionSummary[]> {
-    const [barbers, transactions] = await Promise.all([
-      this.listBarbers(),
-      this.listTransactions(range),
-    ])
-
-    // fetch commission rates
-    const { data: rateRows } = await this.client
-      .from("barbers")
-      .select("id, commission_rate_percent")
-    const rateOf = new Map<string, number>(
-      (rateRows ?? []).map((r: { id: string; commission_rate_percent: number }) => [
-        r.id,
-        Number(r.commission_rate_percent),
-      ])
-    )
-
-    return barbers.map((barber) => {
-      const serviceRevenueCents = transactions
-        .filter((t) => t.saleType === "servico" && t.barberId === barber.id)
-        .reduce((s, t) => s + t.amountCents, 0)
-      const rate = rateOf.get(barber.id) ?? 0
-      return {
-        barberId: barber.id,
-        barberName: barber.name,
-        serviceRevenueCents,
-        commissionRatePercent: rate,
-        commissionCents: Math.round((serviceRevenueCents * rate) / 100),
-      }
-    })
   }
 
   async getCashForecast(): Promise<{

@@ -11,7 +11,6 @@ import type {
   CashMovement,
   CashMovementType,
   ClientHistory,
-  CommissionSummary,
   DRE,
   Expense,
   ExpenseCategory,
@@ -36,7 +35,6 @@ export interface AdminRepository {
   // Catalog
   listBarbers(): Promise<Barber[]>
   listServices(): Promise<Service[]>
-  updateCommissionRate(barberId: string, percent: number): Promise<void>
 
   // Services management
   listAllServices(): Promise<Service[]>
@@ -160,6 +158,5 @@ export interface AdminRepository {
   // Reports
   getCashFlow(range: DateRange, granularity: CashFlowGranularity): Promise<CashFlowBucket[]>
   getDRE(range: DateRange): Promise<DRE>
-  getCommissions(range: DateRange): Promise<CommissionSummary[]>
   getCashForecast(): Promise<{ subscriptionsMonthlyCents: number; upcomingAppointmentsCents: number }>
 }

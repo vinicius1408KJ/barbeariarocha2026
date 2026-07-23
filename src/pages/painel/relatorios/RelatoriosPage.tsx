@@ -8,13 +8,7 @@ import { adminRepository } from "@/lib/repository/adminRepository"
 import type { DateRange } from "@/lib/repository/adminTypes"
 import { EXPENSE_CATEGORY_LABEL, SALE_TYPE_LABEL } from "@/lib/financeLabels"
 import { exportPdf, exportXlsx } from "@/lib/export/exportReport"
-import type {
-  CashFlowBucket,
-  CommissionSummary,
-  DRE,
-  ExpenseCategory,
-  SaleType,
-} from "@/lib/types"
+import type { CashFlowBucket, DRE, ExpenseCategory, SaleType } from "@/lib/types"
 
 type Period = "day" | "week" | "month"
 
@@ -45,7 +39,6 @@ export function RelatoriosPage() {
   const [loading, setLoading] = useState(true)
   const [dre, setDre] = useState<DRE | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowBucket[]>([])
-  const [commissions, setCommissions] = useState<CommissionSummary[]>([])
   const [forecast, setForecast] = useState<{
     subscriptionsMonthlyCents: number
     upcomingAppointmentsCents: number
@@ -55,15 +48,13 @@ export function RelatoriosPage() {
     setLoading(true)
     const range = rangeFor(period)
     try {
-      const [d, cf, com, fc] = await Promise.all([
+      const [d, cf, fc] = await Promise.all([
         adminRepository.getDRE(range),
         adminRepository.getCashFlow(range, "day"),
-        adminRepository.getCommissions(range),
         adminRepository.getCashForecast(),
       ])
       setDre(d)
       setCashFlow(cf)
-      setCommissions(com)
       setForecast(fc)
     } finally {
       setLoading(false)
@@ -90,7 +81,6 @@ export function RelatoriosPage() {
         .filter(([, v]) => v > 0)
         .map(([k, v]) => ({ item: `Despesa · ${EXPENSE_CATEGORY_LABEL[k]}`, valor: formatPriceBRL(v) })),
       { item: "Despesas totais", valor: formatPriceBRL(dre.expensesTotalCents) },
-      { item: "Comissões", valor: formatPriceBRL(dre.commissionsTotalCents) },
       { item: "Taxas de cartão", valor: formatPriceBRL(dre.cardFeesTotalCents) },
       { item: "LUCRO", valor: formatPriceBRL(dre.profitCents) },
     ]
@@ -100,9 +90,7 @@ export function RelatoriosPage() {
   }
 
   // Derived figures for the profit hero + charts
-  const costsCents = dre
-    ? dre.expensesTotalCents + dre.commissionsTotalCents + dre.cardFeesTotalCents
-    : 0
+  const costsCents = dre ? dre.expensesTotalCents + dre.cardFeesTotalCents : 0
   const marginPct =
     dre && dre.revenueTotalCents > 0
       ? Math.round((dre.profitCents / dre.revenueTotalCents) * 100)
@@ -231,7 +219,6 @@ export function RelatoriosPage() {
             <div className="mt-3 rounded-xl border border-border bg-card p-4 text-sm">
               <Row label="Receita total" value={formatPriceBRL(dre.revenueTotalCents)} />
               <Row label="Despesas" value={`− ${formatPriceBRL(dre.expensesTotalCents)}`} muted />
-              <Row label="Comissões" value={`− ${formatPriceBRL(dre.commissionsTotalCents)}`} muted />
               <Row
                 label="Taxas de cartão"
                 value={`− ${formatPriceBRL(dre.cardFeesTotalCents)}`}
@@ -338,31 +325,6 @@ export function RelatoriosPage() {
               </div>
             </section>
           )}
-
-          {/* Commissions */}
-          <section>
-            <p className="mb-2 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
-              Comissões por barbeiro
-            </p>
-            <div className="flex flex-col gap-2">
-              {commissions.map((c) => (
-                <div
-                  key={c.barberId}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{c.barberName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatPriceBRL(c.serviceRevenueCents)} × {c.commissionRatePercent}%
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-primary">
-                    {formatPriceBRL(c.commissionCents)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
 
           {/* Forecast */}
           {forecast && (

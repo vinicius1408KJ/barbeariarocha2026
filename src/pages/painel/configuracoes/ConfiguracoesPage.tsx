@@ -26,7 +26,6 @@ function feeToInput(n: number): string {
 
 export function ConfiguracoesPage() {
   const { session } = useStaffSession()
-  const [rate, setRate] = useState("")
   const [subs, setSubs] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -100,25 +99,6 @@ export function ConfiguracoesPage() {
       toast.error("Não foi possível alterar as notificações.")
     } finally {
       setPushBusy(false)
-    }
-  }
-
-  async function saveRate() {
-    const pct = parseFloat(rate.replace(",", "."))
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      toast.error("Informe uma porcentagem entre 0 e 100.")
-      return
-    }
-    setBusy(true)
-    try {
-      await adminRepository.updateCommissionRate(session!.barberId, pct)
-      toast.success("Comissão atualizada.")
-      setRate("")
-      load()
-    } catch {
-      toast.error("Não foi possível atualizar.")
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -370,31 +350,6 @@ export function ConfiguracoesPage() {
 
           {/* Business hours */}
           <BusinessHoursSection />
-
-          {/* Commission */}
-          <section>
-            <p className="mb-2 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
-              Minha comissão
-            </p>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <Label htmlFor="rate">Percentual (%)</Label>
-                  <Input
-                    id="rate"
-                    inputMode="decimal"
-                    placeholder="40"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <Button disabled={busy} onClick={saveRate} className="h-8">
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          </section>
 
           {/* Card fees */}
           <section>
