@@ -138,6 +138,23 @@ export type Subscription = {
   active: boolean
 }
 
+export type Review = {
+  id: string
+  appointmentId: string
+  barberId: string
+  rating: number // 1..5
+  comment: string | null
+  createdAt: string
+}
+
+// Aggregated view of a client's past visits (for the barber).
+export type ClientHistory = {
+  visits: number
+  lastVisitDate: string | null // "yyyy-MM-dd"
+  totalSpentCents: number
+  favoriteService: string | null
+}
+
 export type NotificationType = "new_appointment" | "cancellation"
 
 export type AppNotification = {

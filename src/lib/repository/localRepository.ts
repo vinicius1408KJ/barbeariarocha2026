@@ -1,5 +1,13 @@
 import { SEED_BARBERS, SEED_BUSINESS_HOURS, SEED_SERVICES } from "@/lib/seedData"
-import type { Appointment, Barber, BlockedSlot, BusinessHours, Service, TimeSlot } from "@/lib/types"
+import type {
+  Appointment,
+  Barber,
+  BlockedSlot,
+  BusinessHours,
+  Review,
+  Service,
+  TimeSlot,
+} from "@/lib/types"
 import { intervalsOverlap, minutesToTime, normalizePhone, timeToMinutes } from "@/lib/utils"
 import type { BookingRepository } from "./types"
 
@@ -9,6 +17,7 @@ const KEYS = {
   appointments: "br_appointments",
   blockedSlots: "br_blocked_slots",
   businessHours: "br_business_hours",
+  reviews: "br_reviews",
 } as const
 
 function readStore<T>(key: string, fallback: T): T {
@@ -143,6 +152,30 @@ class LocalBookingRepository implements BookingRepository {
       a.id === appointmentId ? { ...a, status: "cancelled" as const } : a
     )
     writeStore(KEYS.appointments, updated)
+  }
+
+  async submitReview(input: {
+    appointmentId: string
+    barberId: string
+    rating: number
+    comment: string | null
+  }): Promise<void> {
+    const reviews = readStore<Review[]>(KEYS.reviews, [])
+    const filtered = reviews.filter((r) => r.appointmentId !== input.appointmentId)
+    filtered.push({
+      id: uuid(),
+      appointmentId: input.appointmentId,
+      barberId: input.barberId,
+      rating: input.rating,
+      comment: input.comment,
+      createdAt: new Date().toISOString(),
+    })
+    writeStore(KEYS.reviews, filtered)
+  }
+
+  async getReviews(appointmentIds: string[]): Promise<Review[]> {
+    const reviews = readStore<Review[]>(KEYS.reviews, [])
+    return reviews.filter((r) => appointmentIds.includes(r.appointmentId))
   }
 }
 

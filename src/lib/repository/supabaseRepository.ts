@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient"
-import type { Appointment, Barber, Service, TimeSlot } from "@/lib/types"
+import type { Appointment, Barber, Review, Service, TimeSlot } from "@/lib/types"
 import { intervalsOverlap, minutesToTime, normalizePhone, timeToMinutes } from "@/lib/utils"
 import type { BookingRepository } from "./types"
 
@@ -36,6 +36,26 @@ type AppointmentRow = {
   payment_method: Appointment["paymentMethod"]
   completed_at: string | null
   created_at: string
+}
+
+type ReviewRow = {
+  id: string
+  appointment_id: string
+  barber_id: string
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
+function mapReview(row: ReviewRow): Review {
+  return {
+    id: row.id,
+    appointmentId: row.appointment_id,
+    barberId: row.barber_id,
+    rating: row.rating,
+    comment: row.comment,
+    createdAt: row.created_at,
+  }
 }
 
 function mapService(row: ServiceRow): Service {
@@ -222,6 +242,34 @@ class SupabaseBookingRepository implements BookingRepository {
       .update({ status: "cancelled" })
       .eq("id", appointmentId)
     if (error) throw error
+  }
+
+  async submitReview(input: {
+    appointmentId: string
+    barberId: string
+    rating: number
+    comment: string | null
+  }): Promise<void> {
+    const { error } = await this.client.from("reviews").upsert(
+      {
+        appointment_id: input.appointmentId,
+        barber_id: input.barberId,
+        rating: input.rating,
+        comment: input.comment,
+      },
+      { onConflict: "appointment_id" }
+    )
+    if (error) throw error
+  }
+
+  async getReviews(appointmentIds: string[]): Promise<Review[]> {
+    if (appointmentIds.length === 0) return []
+    const { data, error } = await this.client
+      .from("reviews")
+      .select("*")
+      .in("appointment_id", appointmentIds)
+    if (error) throw error
+    return (data as ReviewRow[]).map(mapReview)
   }
 }
 

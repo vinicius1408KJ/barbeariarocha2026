@@ -1,4 +1,5 @@
-import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router-dom"
+import { Link, Navigate, NavLink, useLocation, useOutlet } from "react-router-dom"
+import { AnimatePresence, motion } from "framer-motion"
 import { Bell, BarChart3, CalendarDays, LogOut, Settings, Wallet } from "lucide-react"
 import { Logo } from "@/components/layout/Logo"
 import { cn } from "@/lib/utils"
@@ -40,6 +41,7 @@ function NotificationBell() {
 export function PainelGuard() {
   const { session, logout } = useStaffSession()
   const location = useLocation()
+  const outlet = useOutlet()
 
   if (!session) {
     return <Navigate to="/painel/login" replace state={{ from: location.pathname }} />
@@ -88,7 +90,17 @@ export function PainelGuard() {
         </div>
       </header>
 
-      <Outlet />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          {outlet}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background/95 backdrop-blur sm:hidden">

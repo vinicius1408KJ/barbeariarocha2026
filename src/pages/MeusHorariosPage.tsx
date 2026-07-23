@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { motion } from "framer-motion"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Search, X } from "lucide-react"
@@ -7,6 +8,7 @@ import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { StarRating } from "@/components/ui/StarRating"
 import { useRepository } from "@/lib/repository/RepositoryContext"
 import { useServices } from "@/hooks/useServices"
 import { useBarbers } from "@/hooks/useBarbers"
@@ -20,6 +22,7 @@ export function MeusHorariosPage() {
   const { barbers } = useBarbers()
   const [phone, setPhone] = useState("")
   const [appointments, setAppointments] = useState<Appointment[] | null>(null)
+  const [ratings, setRatings] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleSearch(e: React.FormEvent) {
@@ -28,6 +31,8 @@ export function MeusHorariosPage() {
     setIsLoading(true)
     const result = await repository.getAppointmentsByPhone(phone)
     setAppointments(result)
+    const reviews = await repository.getReviews(result.map((a) => a.id))
+    setRatings(Object.fromEntries(reviews.map((r) => [r.appointmentId, r.rating])))
     setIsLoading(false)
   }
 
@@ -37,8 +42,33 @@ export function MeusHorariosPage() {
     toast.success("Agendamento cancelado.")
   }
 
+  async function handleRate(appointment: Appointment, rating: number) {
+    setRatings((prev) => ({ ...prev, [appointment.id]: rating }))
+    try {
+      await repository.submitReview({
+        appointmentId: appointment.id,
+        barberId: appointment.barberId,
+        rating,
+        comment: null,
+      })
+      toast.success("Obrigado pela avaliação!")
+    } catch {
+      setRatings((prev) => {
+        const next = { ...prev }
+        delete next[appointment.id]
+        return next
+      })
+      toast.error("Não foi possível enviar a avaliação.")
+    }
+  }
+
   return (
-    <div className="min-h-svh">
+    <motion.div
+      className="min-h-svh"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+    >
       <PageHeader backTo="/agendar/servico" backLabel="Novo agendamento" />
 
       <div className="mx-auto max-w-lg px-6 py-8">
@@ -96,11 +126,28 @@ export function MeusHorariosPage() {
                     </button>
                   )}
                 </div>
+
+                {appointment.status === "completed" && (
+                  <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                    <span className="text-xs text-muted-foreground">
+                      {ratings[appointment.id] ? "Sua avaliação" : "Como foi o atendimento?"}
+                    </span>
+                    <StarRating
+                      value={ratings[appointment.id] ?? 0}
+                      onChange={
+                        ratings[appointment.id]
+                          ? undefined
+                          : (r) => handleRate(appointment, r)
+                      }
+                      size="sm"
+                    />
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

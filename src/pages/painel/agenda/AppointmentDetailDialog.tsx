@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { StarRating } from "@/components/ui/StarRating"
 import { adminRepository } from "@/lib/repository/adminRepository"
 import { CARD_TYPES, CARD_TYPE_LABEL } from "@/lib/financeLabels"
 import { cardFeeCents, cardFeePercent } from "@/lib/cardFees"
@@ -21,7 +22,9 @@ import type {
   AppointmentStatus,
   CardFees,
   CardType,
+  ClientHistory,
   PaymentMethod,
+  Review,
   Service,
 } from "@/lib/types"
 
@@ -62,6 +65,8 @@ export function AppointmentDetailDialog({
   const [payment, setPayment] = useState<PaymentMethod | null>(null)
   const [cardType, setCardType] = useState<CardType | null>(null)
   const [fees, setFees] = useState<CardFees>(ZERO_FEES)
+  const [history, setHistory] = useState<ClientHistory | null>(null)
+  const [review, setReview] = useState<Review | null>(null)
   const [busy, setBusy] = useState(false)
 
   // Load configured card fees once when the dialog opens.
@@ -69,6 +74,21 @@ export function AppointmentDetailDialog({
     if (!open) return
     adminRepository.getCardFees().then(setFees).catch(() => setFees(ZERO_FEES))
   }, [open])
+
+  // Load the client's history + this appointment's review when the dialog opens.
+  useEffect(() => {
+    if (!open || !appointment) {
+      setHistory(null)
+      setReview(null)
+      return
+    }
+    adminRepository.getClientHistory(appointment.clientPhone).then(setHistory).catch(() => {})
+    if (appointment.status === "completed") {
+      adminRepository.getAppointmentReview(appointment.id).then(setReview).catch(() => {})
+    } else {
+      setReview(null)
+    }
+  }, [open, appointment])
 
   // Reset payment selection whenever the dialog opens for a new appointment.
   useEffect(() => {
@@ -150,12 +170,49 @@ export function AppointmentDetailDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Client history */}
+        {history && history.visits > 0 && (
+          <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-card px-3 py-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-foreground">
+                {history.visits}ª visita
+              </span>
+              <span className="text-muted-foreground">
+                Gastou {formatPriceBRL(history.totalSpentCents)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              {history.lastVisitDate && (
+                <span>
+                  Última: {new Date(`${history.lastVisitDate}T00:00:00`).toLocaleDateString("pt-BR")}
+                </span>
+              )}
+              {history.favoriteService && <span>Preferido: {history.favoriteService}</span>}
+            </div>
+          </div>
+        )}
+
         {appointment.status === "completed" ? (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-400">
-            <CheckCircle2 className="size-4" />
-            Finalizado ·{" "}
-            {appointment.pricePaidCents != null && formatPriceBRL(appointment.pricePaidCents)}
-            {appointment.paymentMethod && ` · ${PAYMENT_LABEL[appointment.paymentMethod]}`}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-400">
+              <CheckCircle2 className="size-4" />
+              Finalizado ·{" "}
+              {appointment.pricePaidCents != null && formatPriceBRL(appointment.pricePaidCents)}
+              {appointment.paymentMethod && ` · ${PAYMENT_LABEL[appointment.paymentMethod]}`}
+            </div>
+            {review && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Avaliação do cliente
+                  </span>
+                  <StarRating value={review.rating} size="sm" />
+                </div>
+                {review.comment && (
+                  <p className="text-sm text-muted-foreground">"{review.comment}"</p>
+                )}
+              </div>
+            )}
           </div>
         ) : appointment.status === "cancelled" || appointment.status === "no_show" ? (
           <div className="rounded-lg border border-border/60 px-3 py-2.5 text-sm text-muted-foreground">

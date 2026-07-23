@@ -1,4 +1,4 @@
-import type { Appointment, Barber, Service, TimeSlot } from "@/lib/types"
+import type { Appointment, Barber, Review, Service, TimeSlot } from "@/lib/types"
 
 export interface BookingRepository {
   readonly mode: "supabase" | "local"
@@ -19,4 +19,12 @@ export interface BookingRepository {
   }): Promise<Appointment>
   getAppointmentsByPhone(phone: string): Promise<Appointment[]>
   cancelAppointment(appointmentId: string): Promise<void>
+  // Post-service ratings
+  submitReview(input: {
+    appointmentId: string
+    barberId: string
+    rating: number
+    comment: string | null
+  }): Promise<void>
+  getReviews(appointmentIds: string[]): Promise<Review[]>
 }

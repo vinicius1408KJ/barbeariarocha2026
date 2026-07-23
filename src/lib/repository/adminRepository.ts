@@ -12,11 +12,13 @@ import type {
   CashFlowBucket,
   CashMovement,
   CashMovementType,
+  ClientHistory,
   CommissionSummary,
   DRE,
   Expense,
   ExpenseCategory,
   PaymentMethod,
+  Review,
   SaleType,
   Service,
   Subscription,
@@ -355,6 +357,67 @@ class SupabaseAdminRepository implements AdminRepository {
       p_fee_cents: paymentMethod === "cartao" ? feeCents : 0,
     })
     if (error) throw error
+  }
+
+  // ── Client history + reviews ───────────────────────────────────
+
+  async getClientHistory(phone: string): Promise<ClientHistory> {
+    const normalized = normalizePhone(phone)
+    const { data, error } = await this.client
+      .from("appointments")
+      .select("date, price_paid_cents, service_id, services(name)")
+      .eq("client_phone", normalized)
+      .eq("status", "completed")
+      .order("date", { ascending: false })
+    if (error) throw error
+
+    type HistoryRow = {
+      date: string
+      price_paid_cents: number | null
+      services: { name: string } | { name: string }[] | null
+    }
+    const rows = (data ?? []) as unknown as HistoryRow[]
+
+    const totalSpentCents = rows.reduce((s, r) => s + (r.price_paid_cents ?? 0), 0)
+    const counts = new Map<string, number>()
+    for (const r of rows) {
+      const svc = Array.isArray(r.services) ? r.services[0] : r.services
+      const name = svc?.name
+      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+    }
+    let favoriteService: string | null = null
+    let max = 0
+    for (const [name, n] of counts) {
+      if (n > max) {
+        max = n
+        favoriteService = name
+      }
+    }
+
+    return {
+      visits: rows.length,
+      lastVisitDate: rows[0]?.date ?? null,
+      totalSpentCents,
+      favoriteService,
+    }
+  }
+
+  async getAppointmentReview(appointmentId: string): Promise<Review | null> {
+    const { data, error } = await this.client
+      .from("reviews")
+      .select("*")
+      .eq("appointment_id", appointmentId)
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return null
+    return {
+      id: data.id,
+      appointmentId: data.appointment_id,
+      barberId: data.barber_id,
+      rating: data.rating,
+      comment: data.comment,
+      createdAt: data.created_at,
+    }
   }
 
   // ── Notifications ──────────────────────────────────────────────

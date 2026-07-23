@@ -9,11 +9,13 @@ import type {
   CashFlowBucket,
   CashMovement,
   CashMovementType,
+  ClientHistory,
   CommissionSummary,
   DRE,
   Expense,
   ExpenseCategory,
   PaymentMethod,
+  Review,
   SaleType,
   Service,
   Subscription,
@@ -81,6 +83,10 @@ export interface AdminRepository {
     cardType?: CardType | null
     feeCents?: number
   }): Promise<void>
+
+  // Client history + reviews (barber view)
+  getClientHistory(phone: string): Promise<ClientHistory>
+  getAppointmentReview(appointmentId: string): Promise<Review | null>
 
   // Finance — expenses
   listExpenses(range: DateRange): Promise<Expense[]>
