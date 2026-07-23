@@ -1,18 +1,23 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { addDays, format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronLeft, ChevronRight, Scissors } from "lucide-react"
+import { CalendarOff, ChevronLeft, ChevronRight, Scissors } from "lucide-react"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { TimeSlotGrid } from "@/components/booking/TimeSlotGrid"
 import { Button } from "@/components/ui/button"
 import { useBookingFlow } from "@/hooks/useBookingFlow"
 import { useAvailableSlots } from "@/hooks/useAvailableSlots"
+import { useOpenWeekdays } from "@/hooks/useOpenWeekdays"
 import { formatPriceBRL } from "@/lib/utils"
 
 function todayISO(): string {
   return format(new Date(), "yyyy-MM-dd")
+}
+
+function weekdayOf(dateStr: string): number {
+  return new Date(`${dateStr}T00:00:00`).getDay()
 }
 
 export function DateTimeSelectPage() {
@@ -20,6 +25,25 @@ export function DateTimeSelectPage() {
   const navigate = useNavigate()
   const [date, setDate] = useState(state.date ?? todayISO())
   const [selectedTime, setSelectedTime] = useState<string | null>(state.time)
+  const { openWeekdays } = useOpenWeekdays()
+
+  const dayIsOpen = openWeekdays ? openWeekdays.includes(weekdayOf(date)) : true
+
+  // Once we know the open days, jump the initial date forward to the next open
+  // day if the current one is closed (and the user hasn't picked a time yet).
+  useEffect(() => {
+    if (!openWeekdays || openWeekdays.length === 0 || state.date || selectedTime) return
+    if (openWeekdays.includes(weekdayOf(date))) return
+    let cursor = date
+    for (let i = 0; i < 7; i++) {
+      cursor = format(addDays(new Date(`${cursor}T00:00:00`), 1), "yyyy-MM-dd")
+      if (openWeekdays.includes(weekdayOf(cursor))) {
+        setDate(cursor)
+        break
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openWeekdays])
 
   const { slots, isLoading } = useAvailableSlots({
     barberId: state.barber?.id ?? null,
@@ -33,9 +57,17 @@ export function DateTimeSelectPage() {
     setSelectedTime(null)
   }
 
-  function shiftDate(days: number) {
-    const next = format(addDays(new Date(`${date}T00:00:00`), days), "yyyy-MM-dd")
-    handleDateChange(next)
+  // Move to the next/previous open day (skips closed weekdays), never before today.
+  function shiftDate(dir: 1 | -1) {
+    let cursor = date
+    for (let i = 0; i < 14; i++) {
+      cursor = format(addDays(new Date(`${cursor}T00:00:00`), dir), "yyyy-MM-dd")
+      if (cursor < todayISO()) return
+      if (!openWeekdays || openWeekdays.length === 0 || openWeekdays.includes(weekdayOf(cursor))) {
+        handleDateChange(cursor)
+        return
+      }
+    }
   }
 
   function handleContinue() {
@@ -108,12 +140,26 @@ export function DateTimeSelectPage() {
         <p className="mt-6 mb-2 text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
           Horários disponíveis
         </p>
-        <TimeSlotGrid
-          slots={slots}
-          selectedTime={selectedTime}
-          onSelect={setSelectedTime}
-          isLoading={isLoading}
-        />
+        {dayIsOpen ? (
+          <TimeSlotGrid
+            slots={slots}
+            selectedTime={selectedTime}
+            onSelect={setSelectedTime}
+            isLoading={isLoading}
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center">
+            <CalendarOff className="size-7 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">Fechado neste dia.</p>
+            <button
+              type="button"
+              onClick={() => shiftDate(1)}
+              className="text-xs font-semibold tracking-wide text-primary uppercase transition-colors hover:text-primary/80"
+            >
+              Ver próximo dia aberto
+            </button>
+          </div>
+        )}
 
         <AnimatePresence>
           {selectedTime && (

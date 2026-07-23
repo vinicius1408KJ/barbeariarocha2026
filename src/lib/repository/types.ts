@@ -19,6 +19,8 @@ export interface BookingRepository {
   }): Promise<Appointment>
   getAppointmentsByPhone(phone: string): Promise<Appointment[]>
   cancelAppointment(appointmentId: string): Promise<void>
+  // Weekdays (0=Sun..6=Sat) the shop is open on.
+  getOpenWeekdays(): Promise<number[]>
   // Post-service ratings
   submitReview(input: {
     appointmentId: string

@@ -244,6 +244,16 @@ class SupabaseBookingRepository implements BookingRepository {
     if (error) throw error
   }
 
+  async getOpenWeekdays(): Promise<number[]> {
+    const { data, error } = await this.client
+      .from("business_hours")
+      .select("day_of_week")
+      .is("barber_id", null)
+    if (error) throw error
+    const days = new Set((data as { day_of_week: number }[]).map((r) => r.day_of_week))
+    return [...days].sort((a, b) => a - b)
+  }
+
   async submitReview(input: {
     appointmentId: string
     barberId: string

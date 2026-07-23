@@ -1,10 +1,16 @@
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Brush, Calendar, Scissors } from "lucide-react"
+import { Brush, Calendar, MapPin, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { RazorIcon } from "@/components/hero/icons"
+import { InstagramIcon, RazorIcon } from "@/components/hero/icons"
 
 const EASE = [0.22, 1, 0.36, 1] as const
+
+const INSTAGRAM_HANDLE = "barbearia_rocha.l.t"
+const INSTAGRAM_URL = `https://instagram.com/${INSTAGRAM_HANDLE}`
+
+const ADDRESS = "R. Braulino Botelho - Centro, São Raimundo das Mangabeiras - MA, 65840-000"
+const MAPS_URL = "https://share.google/CtaphZM0GHdThnUuf"
 
 const FEATURES = [
   { icon: Scissors, label: "Cortes Clássicos" },
@@ -32,12 +38,23 @@ export function HomePage() {
       <section className="relative overflow-hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pt-6 sm:px-10">
           <HeroBrandMark />
-          <Link
-            to="/painel"
-            className="text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
-          >
-            Painel
-          </Link>
+          <div className="flex items-center gap-5">
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-primary"
+            >
+              <InstagramIcon className="size-4" />
+              <span className="hidden sm:inline normal-case tracking-normal">@{INSTAGRAM_HANDLE}</span>
+            </a>
+            <Link
+              to="/painel"
+              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
+            >
+              Painel
+            </Link>
+          </div>
         </div>
 
         <div className="mx-auto grid max-w-7xl gap-10 px-6 pt-12 pb-16 sm:px-10 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-16 lg:pb-24">
@@ -105,6 +122,47 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      <footer className="border-t border-border bg-card/40">
+        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
+          <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Scissors className="size-4" strokeWidth={2.5} />
+              </span>
+              <div className="leading-tight">
+                <p className="text-[10px] font-semibold tracking-[0.3em] text-primary uppercase">Barbearia</p>
+                <p className="font-display text-lg tracking-wide text-foreground">Rocha</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex max-w-xs items-start gap-2 text-sm text-muted-foreground transition-colors hover:text-primary sm:max-w-sm"
+              >
+                <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{ADDRESS}</span>
+              </a>
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+              >
+                <InstagramIcon className="size-4 shrink-0" />
+                @{INSTAGRAM_HANDLE}
+              </a>
+            </div>
+          </div>
+
+          <p className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Barbearia Rocha
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }

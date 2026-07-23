@@ -154,6 +154,12 @@ class LocalBookingRepository implements BookingRepository {
     writeStore(KEYS.appointments, updated)
   }
 
+  async getOpenWeekdays(): Promise<number[]> {
+    const businessHours = readStore(KEYS.businessHours, SEED_BUSINESS_HOURS)
+    const days = new Set(businessHours.map((h: BusinessHours) => h.dayOfWeek))
+    return [...days].sort((a, b) => a - b)
+  }
+
   async submitReview(input: {
     appointmentId: string
     barberId: string
