@@ -124,8 +124,8 @@ export function HomePage() {
       </section>
 
       <footer className="border-t border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
-          <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+        <div className="mx-auto max-w-7xl px-6 py-4 sm:px-10">
+          <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
             <div className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Scissors className="size-4" strokeWidth={2.5} />
@@ -136,7 +136,7 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-3 sm:items-start">
+            <div className="flex flex-col items-center gap-1.5 sm:items-start">
               <a
                 href={MAPS_URL}
                 target="_blank"
@@ -158,7 +158,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <p className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-4 border-t border-border pt-3 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} Barbearia Rocha
           </p>
         </div>
