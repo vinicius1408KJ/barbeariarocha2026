@@ -16,6 +16,7 @@ import type {
   ExpenseCategory,
   PaymentMethod,
   Product,
+  ReminderSettings,
   Review,
   SaleType,
   Service,
@@ -65,6 +66,10 @@ export interface AdminRepository {
   // Settings — card fees
   getCardFees(): Promise<CardFees>
   updateCardFees(fees: CardFees): Promise<void>
+
+  // Settings — automatic reminders
+  getReminderSettings(): Promise<ReminderSettings>
+  updateReminderSettings(settings: ReminderSettings): Promise<void>
 
   // Agenda
   listAppointmentsForBarber(barberId: string, date: string): Promise<Appointment[]>
@@ -158,6 +163,8 @@ export interface AdminRepository {
   listNotifications(barberId: string, limit?: number): Promise<AppNotification[]>
   getUnreadNotificationCount(barberId: string): Promise<number>
   markNotificationsRead(barberId: string): Promise<void>
+  deleteNotification(id: string): Promise<void>
+  clearNotifications(barberId: string): Promise<void>
 
   // Push subscriptions
   savePushSubscription(

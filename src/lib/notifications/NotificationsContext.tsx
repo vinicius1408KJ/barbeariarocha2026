@@ -18,6 +18,8 @@ type NotificationsContextValue = {
   unread: number
   refresh: () => Promise<void>
   markAllRead: () => Promise<void>
+  deleteOne: (id: string) => Promise<void>
+  clearAll: () => Promise<void>
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null)
@@ -50,6 +52,35 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setUnread(0)
     try {
       await adminRepository.markNotificationsRead(barberId)
+    } catch {
+      refresh()
+    }
+  }, [barberId, refresh])
+
+  const deleteOne = useCallback(
+    async (id: string) => {
+      setItems((prev) => {
+        const n = prev.find((x) => x.id === id)
+        if (n && !n.read) setUnread((u) => Math.max(0, u - 1))
+        return prev.filter((x) => x.id !== id)
+      })
+      seenIds.current.delete(id)
+      try {
+        await adminRepository.deleteNotification(id)
+      } catch {
+        refresh()
+      }
+    },
+    [refresh]
+  )
+
+  const clearAll = useCallback(async () => {
+    if (!barberId) return
+    setItems([])
+    setUnread(0)
+    seenIds.current = new Set()
+    try {
+      await adminRepository.clearNotifications(barberId)
     } catch {
       refresh()
     }
@@ -92,7 +123,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [barberId, refresh])
 
   return (
-    <NotificationsContext.Provider value={{ items, unread, refresh, markAllRead }}>
+    <NotificationsContext.Provider value={{ items, unread, refresh, markAllRead, deleteOne, clearAll }}>
       {children}
     </NotificationsContext.Provider>
   )

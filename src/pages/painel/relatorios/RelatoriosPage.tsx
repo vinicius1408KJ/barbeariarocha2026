@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   addDays,
   addMonths,
@@ -68,7 +68,6 @@ export function RelatoriosPage() {
   const { session } = useStaffSession()
   const [gran, setGran] = useState<Gran>("month")
   const [ref, setRef] = useState<Date>(new Date())
-  const dateInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [dre, setDre] = useState<DRE | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowBucket[]>([])
@@ -187,41 +186,26 @@ export function RelatoriosPage() {
           <ChevronLeft className="size-5" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            const el = dateInputRef.current
-            if (!el) return
-            if (typeof el.showPicker === "function") {
-              try {
-                el.showPicker()
-                return
-              } catch {
-                /* fall through */
-              }
-            }
-            el.focus()
-            el.click()
-          }}
-          className="flex flex-1 flex-col items-center rounded-lg py-1 transition-colors hover:bg-accent active:scale-[0.98]"
-        >
-          <span className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
-            <CalendarDays className="size-4 text-primary" />
-            {periodLabel(gran, ref)}
-          </span>
-          <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            escolher a data
-          </span>
-        </button>
-        <input
-          ref={dateInputRef}
-          type="date"
-          value={format(ref, "yyyy-MM-dd")}
-          onChange={(e) => e.target.value && setRef(new Date(`${e.target.value}T00:00:00`))}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
+        <div className="relative flex-1">
+          {/* Transparent native date input overlays only the middle (not the arrows),
+              so tapping opens the picker reliably on mobile. */}
+          <input
+            type="date"
+            value={format(ref, "yyyy-MM-dd")}
+            onChange={(e) => e.target.value && setRef(new Date(`${e.target.value}T00:00:00`))}
+            aria-label="Escolher data"
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+          />
+          <div className="pointer-events-none flex flex-col items-center py-1">
+            <span className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
+              <CalendarDays className="size-4 text-primary" />
+              {periodLabel(gran, ref)}
+            </span>
+            <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+              escolher a data
+            </span>
+          </div>
+        </div>
 
         <button
           type="button"

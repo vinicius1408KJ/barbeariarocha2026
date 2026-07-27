@@ -44,6 +44,10 @@ export function ConfiguracoesPage() {
   const [pushState, setPushState] = useState<PushState | null>(null)
   const [pushBusy, setPushBusy] = useState(false)
 
+  // Automatic reminders
+  const [reminderEnabled, setReminderEnabled] = useState(true)
+  const [reminderHours, setReminderHours] = useState("3")
+
   // PIN change
   const [pin1, setPin1] = useState("")
   const [pin2, setPin2] = useState("")
@@ -59,16 +63,19 @@ export function ConfiguracoesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [subsData, fees, barbers] = await Promise.all([
+      const [subsData, fees, barbers, reminder] = await Promise.all([
         adminRepository.listSubscriptions(),
         adminRepository.getCardFees(),
         adminRepository.listBarbers(),
+        adminRepository.getReminderSettings(),
       ])
       setSubs(subsData)
       setFeeDebito(feeToInput(fees.debitoPercent))
       setFeeCreditoVista(feeToInput(fees.creditoVistaPercent))
       setFeeCreditoParcelado(feeToInput(fees.creditoParceladoPercent))
       setAvatarUrl(barbers.find((b) => b.id === session?.barberId)?.avatarUrl ?? null)
+      setReminderEnabled(reminder.enabled)
+      setReminderHours(String(reminder.hoursBefore))
     } finally {
       setLoading(false)
     }
@@ -157,6 +164,25 @@ export function ConfiguracoesPage() {
       load()
     } catch {
       toast.error("Não foi possível salvar as taxas.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveReminders(next?: { enabled?: boolean; hours?: number }) {
+    const enabled = next?.enabled ?? reminderEnabled
+    const hours = next?.hours ?? parseInt(reminderHours || "0", 10)
+    if (isNaN(hours) || hours < 1 || hours > 48) {
+      toast.error("Informe entre 1 e 48 horas.")
+      return
+    }
+    setBusy(true)
+    try {
+      await adminRepository.updateReminderSettings({ enabled, hoursBefore: hours })
+      toast.success("Lembrete atualizado.")
+    } catch {
+      toast.error("Não foi possível salvar o lembrete.")
+      load()
     } finally {
       setBusy(false)
     }
@@ -341,6 +367,65 @@ export function ConfiguracoesPage() {
                 </>
               ) : (
                 <Skeleton className="h-9 w-40 rounded-lg" />
+              )}
+            </div>
+          </section>
+
+          {/* Automatic reminders */}
+          <section>
+            <p className="mb-2 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+              Lembrete automático
+            </p>
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Lembrar o cliente</p>
+                  <p className="text-xs text-muted-foreground">
+                    Antes do horário, o sistema te avisa com a mensagem pronta pra enviar no
+                    WhatsApp (1 toque).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={reminderEnabled}
+                  disabled={busy}
+                  onClick={() => {
+                    const next = !reminderEnabled
+                    setReminderEnabled(next)
+                    saveReminders({ enabled: next })
+                  }}
+                  className={
+                    "relative h-6 w-11 shrink-0 rounded-full transition-colors " +
+                    (reminderEnabled ? "bg-primary" : "bg-secondary")
+                  }
+                >
+                  <span
+                    className={
+                      "absolute top-0.5 size-5 rounded-full bg-white transition-transform " +
+                      (reminderEnabled ? "translate-x-[22px]" : "translate-x-0.5")
+                    }
+                  />
+                </button>
+              </div>
+
+              {reminderEnabled && (
+                <div className="flex items-end gap-3 border-t border-border pt-3">
+                  <div className="flex-1">
+                    <Label htmlFor="reminder-hours">Quantas horas antes</Label>
+                    <Input
+                      id="reminder-hours"
+                      inputMode="numeric"
+                      placeholder="3"
+                      value={reminderHours}
+                      onChange={(e) => setReminderHours(e.target.value.replace(/\D/g, ""))}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <Button disabled={busy} onClick={() => saveReminders()} className="h-9">
+                    Salvar
+                  </Button>
+                </div>
               )}
             </div>
           </section>

@@ -19,6 +19,7 @@ import type {
   ExpenseCategory,
   PaymentMethod,
   Product,
+  ReminderSettings,
   Review,
   SaleType,
   Service,
@@ -107,6 +108,8 @@ type NotificationRow = {
   appointment_id: string | null
   title: string
   body: string
+  wa_phone: string | null
+  wa_message: string | null
   read: boolean
   created_at: string
 }
@@ -119,6 +122,8 @@ function mapNotification(row: NotificationRow): AppNotification {
     appointmentId: row.appointment_id,
     title: row.title,
     body: row.body,
+    waPhone: row.wa_phone,
+    waMessage: row.wa_message,
     read: row.read,
     createdAt: row.created_at,
   }
@@ -470,6 +475,19 @@ class SupabaseAdminRepository implements AdminRepository {
       .update({ read: true })
       .eq("barber_id", barberId)
       .eq("read", false)
+    if (error) throw error
+  }
+
+  async deleteNotification(id: string): Promise<void> {
+    const { error } = await this.client.from("notifications").delete().eq("id", id)
+    if (error) throw error
+  }
+
+  async clearNotifications(barberId: string): Promise<void> {
+    const { error } = await this.client
+      .from("notifications")
+      .delete()
+      .eq("barber_id", barberId)
     if (error) throw error
   }
 
@@ -839,6 +857,29 @@ class SupabaseAdminRepository implements AdminRepository {
       card_fee_debito_percent: fees.debitoPercent,
       card_fee_credito_vista_percent: fees.creditoVistaPercent,
       card_fee_credito_parcelado_percent: fees.creditoParceladoPercent,
+      updated_at: new Date().toISOString(),
+    })
+    if (error) throw error
+  }
+
+  async getReminderSettings(): Promise<ReminderSettings> {
+    const { data, error } = await this.client
+      .from("app_settings")
+      .select("reminder_enabled, reminder_hours_before")
+      .eq("id", 1)
+      .maybeSingle()
+    if (error) throw error
+    return {
+      enabled: data?.reminder_enabled ?? true,
+      hoursBefore: data?.reminder_hours_before ?? 3,
+    }
+  }
+
+  async updateReminderSettings(settings: ReminderSettings): Promise<void> {
+    const { error } = await this.client.from("app_settings").upsert({
+      id: 1,
+      reminder_enabled: settings.enabled,
+      reminder_hours_before: settings.hoursBefore,
       updated_at: new Date().toISOString(),
     })
     if (error) throw error

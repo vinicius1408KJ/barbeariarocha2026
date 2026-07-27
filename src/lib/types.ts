@@ -163,7 +163,7 @@ export type ClientHistory = {
   favoriteService: string | null
 }
 
-export type NotificationType = "new_appointment" | "cancellation"
+export type NotificationType = "new_appointment" | "cancellation" | "reminder"
 
 export type AppNotification = {
   id: string
@@ -172,8 +172,15 @@ export type AppNotification = {
   appointmentId: string | null
   title: string
   body: string
+  waPhone: string | null
+  waMessage: string | null
   read: boolean
   createdAt: string
+}
+
+export type ReminderSettings = {
+  enabled: boolean
+  hoursBefore: number
 }
 
 // Report aggregates
