@@ -14,7 +14,35 @@
     <title>Barbearia Rocha</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static splash shown instantly while the JS bundle downloads.
+           createRoot(...).render() below replaces this div's contents
+           outright once React mounts (no hydration involved), so it
+           disappears on its own — no manual cleanup needed. Only rendered
+           when the URL is under /rocha-adm, so the booking site's own
+           (already fast) home page isn't affected. -->
+      <script>
+        if (location.pathname.startsWith('/rocha-adm')) {
+          document.write(
+            '<div id="initial-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#0a0a0a;z-index:9999">' +
+              '<div style="display:flex;flex-direction:column;align-items:center;gap:16px">' +
+                '<span style="display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:#c9a24a;box-shadow:0 10px 25px -5px rgba(201,162,74,0.3)">' +
+                  '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>' +
+                '</span>' +
+                '<div style="text-align:center;line-height:1.1">' +
+                  '<p style="margin:0;font:600 11px/1 system-ui,sans-serif;letter-spacing:.3em;color:#c9a24a;text-transform:uppercase">Barbearia</p>' +
+                  '<p style="margin:6px 0 0;font:400 26px/1 Georgia,serif;letter-spacing:.02em;color:#fafafa">Rocha</p>' +
+                '</div>' +
+              '</div>' +
+              '<div style="width:160px;height:4px;border-radius:9999px;background:#1f1f1f;overflow:hidden">' +
+                '<div style="width:0;height:100%;border-radius:9999px;background:#c9a24a;animation:splash-fill 1.6s cubic-bezier(0.16,1,0.3,1) forwards"></div>' +
+              '</div>' +
+            '</div>' +
+            '<style>@keyframes splash-fill{0%{width:0}100%{width:92%}}</style>'
+          )
+        }
+      </script>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,7 +1,3 @@
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
-import ExcelJS from "exceljs"
-
 export type ReportColumn = { header: string; key: string }
 export type ReportRow = Record<string, string | number>
 
@@ -14,12 +10,20 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportPdf(
+// jspdf/jspdf-autotable/exceljs are sizeable and only ever needed when the
+// user actually taps an export button, so they're loaded on demand instead
+// of bloating the main panel bundle everyone downloads on login.
+export async function exportPdf(
   title: string,
   subtitle: string,
   columns: ReportColumn[],
   rows: ReportRow[]
 ) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ])
+
   const doc = new jsPDF()
   doc.setFontSize(16)
   doc.text("Barbearia Rocha", 14, 18)
@@ -45,6 +49,8 @@ export async function exportXlsx(
   columns: ReportColumn[],
   rows: ReportRow[]
 ) {
+  const { default: ExcelJS } = await import("exceljs")
+
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet(title.slice(0, 31))
   ws.columns = columns.map((c) => ({ header: c.header, key: c.key, width: 22 }))
