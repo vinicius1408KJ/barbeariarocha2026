@@ -29,10 +29,17 @@ export type DateRange = { from: string; to: string } // "yyyy-MM-dd" inclusive
 
 export type CashFlowGranularity = "day" | "week" | "month"
 
+export type LoginBarber = Barber & { authEmail: string }
+
 export interface AdminRepository {
-  // Auth
-  verifyPin(barberId: string, pin: string): Promise<boolean>
-  changePin(barberId: string, newPin: string): Promise<void>
+  // Auth — real Supabase Auth session under the hood (not a client-forgeable
+  // sessionStorage flag). PIN is the account's password.
+  listBarbersForLogin(): Promise<LoginBarber[]>
+  verifyPin(authEmail: string, pin: string): Promise<boolean>
+  changePin(newPin: string): Promise<void>
+  logout(): Promise<void>
+  // Barber id embedded in the current session's JWT, or null if signed out.
+  getCurrentBarberId(): Promise<string | null>
 
   // Catalog
   listBarbers(): Promise<Barber[]>

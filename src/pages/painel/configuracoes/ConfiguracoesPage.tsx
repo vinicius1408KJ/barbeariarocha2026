@@ -189,8 +189,8 @@ export function ConfiguracoesPage() {
   }
 
   async function savePin() {
-    if (!/^\d{4}$/.test(pin1)) {
-      toast.error("O PIN deve ter 4 dígitos.")
+    if (!/^\d{6}$/.test(pin1)) {
+      toast.error("O PIN deve ter 6 dígitos.")
       return
     }
     if (pin1 !== pin2) {
@@ -199,7 +199,7 @@ export function ConfiguracoesPage() {
     }
     setBusy(true)
     try {
-      await adminRepository.changePin(session!.barberId, pin1)
+      await adminRepository.changePin(pin1)
       toast.success("PIN alterado.")
       setPin1("")
       setPin2("")
@@ -488,12 +488,12 @@ export function ConfiguracoesPage() {
             </p>
             <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="pin1">Novo PIN (4 dígitos)</Label>
+                <Label htmlFor="pin1">Novo PIN (6 dígitos)</Label>
                 <Input
                   id="pin1"
                   type="password"
                   inputMode="numeric"
-                  maxLength={4}
+                  maxLength={6}
                   value={pin1}
                   onChange={(e) => setPin1(e.target.value.replace(/\D/g, ""))}
                 />
@@ -504,7 +504,7 @@ export function ConfiguracoesPage() {
                   id="pin2"
                   type="password"
                   inputMode="numeric"
-                  maxLength={4}
+                  maxLength={6}
                   value={pin2}
                   onChange={(e) => setPin2(e.target.value.replace(/\D/g, ""))}
                 />

@@ -118,7 +118,8 @@ class SupabaseBookingRepository implements BookingRepository {
   }
 
   async listBarbers(): Promise<Barber[]> {
-    const { data, error } = await this.client.from("barbers").select("*").eq("active", true)
+    // Public-safe view: no pin_hash/pin_salt/commission columns exposed.
+    const { data, error } = await this.client.from("barbers_public").select("*").eq("active", true)
     if (error) throw error
     return (data as BarberRow[]).map(mapBarber)
   }
@@ -142,12 +143,12 @@ class SupabaseBookingRepository implements BookingRepository {
       hoursRows?.find((h) => h.barber_id === barberId) ?? hoursRows?.find((h) => h.barber_id === null)
     if (!hours) return []
 
+    // Public-safe view: only slot timing, no client name/phone exposed.
     const { data: appointmentRows, error: apptError } = await this.client
-      .from("appointments")
+      .from("appointment_slots")
       .select("start_time, end_time")
       .eq("barber_id", barberId)
       .eq("date", date)
-      .neq("status", "cancelled")
     if (apptError) throw apptError
 
     const { data: blockedRows, error: blockedError } = await this.client
@@ -234,21 +235,24 @@ class SupabaseBookingRepository implements BookingRepository {
   }
 
   async getAppointmentsByPhone(phone: string): Promise<Appointment[]> {
-    const { data, error } = await this.client
-      .from("appointments")
-      .select("*")
-      .eq("client_phone", normalizePhone(phone))
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true })
+    // Scoped RPC (not a table SELECT): returns only this phone's own
+    // appointments, so no other client's name/phone can ever leak.
+    const { data, error } = await this.client.rpc("get_appointments_by_phone", {
+      p_phone: normalizePhone(phone),
+    })
     if (error) throw error
-    return (data as AppointmentRow[]).map(mapAppointment)
+    return (data as AppointmentRow[])
+      .map(mapAppointment)
+      .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
   }
 
-  async cancelAppointment(appointmentId: string): Promise<void> {
-    const { error } = await this.client
-      .from("appointments")
-      .update({ status: "cancelled" })
-      .eq("id", appointmentId)
+  async cancelAppointment(appointmentId: string, phone: string): Promise<void> {
+    // Requires the phone to match server-side, so a guessed/leaked UUID
+    // alone can't be used to cancel someone else's appointment.
+    const { error } = await this.client.rpc("cancel_own_appointment", {
+      p_appointment_id: appointmentId,
+      p_phone: normalizePhone(phone),
+    })
     if (error) throw error
   }
 
@@ -265,29 +269,31 @@ class SupabaseBookingRepository implements BookingRepository {
   async submitReview(input: {
     appointmentId: string
     barberId: string
+    clientPhone: string
     rating: number
     comment: string | null
   }): Promise<void> {
-    const { error } = await this.client.from("reviews").upsert(
-      {
-        appointment_id: input.appointmentId,
-        barber_id: input.barberId,
-        rating: input.rating,
-        comment: input.comment,
-      },
-      { onConflict: "appointment_id" }
-    )
+    // Ownership (appointment belongs to this phone, and is completed) is
+    // verified server-side by the RPC — not a bare table insert.
+    const { error } = await this.client.rpc("submit_review", {
+      p_appointment_id: input.appointmentId,
+      p_phone: normalizePhone(input.clientPhone),
+      p_rating: input.rating,
+      p_comment: input.comment,
+    })
     if (error) throw error
   }
 
-  async getReviews(appointmentIds: string[]): Promise<Review[]> {
+  async getReviews(appointmentIds: string[], phone: string): Promise<Review[]> {
     if (appointmentIds.length === 0) return []
-    const { data, error } = await this.client
-      .from("reviews")
-      .select("*")
-      .in("appointment_id", appointmentIds)
+    // Scoped RPC by phone (reviews table SELECT is staff-only now).
+    const { data, error } = await this.client.rpc("get_reviews_by_phone", {
+      p_phone: normalizePhone(phone),
+    })
     if (error) throw error
-    return (data as ReviewRow[]).map(mapReview)
+    return (data as ReviewRow[])
+      .filter((r) => appointmentIds.includes(r.appointment_id))
+      .map(mapReview)
   }
 }
 

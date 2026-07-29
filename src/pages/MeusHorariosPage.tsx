@@ -21,6 +21,7 @@ export function MeusHorariosPage() {
   const { services } = useServices()
   const { barbers } = useBarbers()
   const [phone, setPhone] = useState("")
+  const [searchedPhone, setSearchedPhone] = useState("")
   const [appointments, setAppointments] = useState<Appointment[] | null>(null)
   const [ratings, setRatings] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -31,13 +32,14 @@ export function MeusHorariosPage() {
     setIsLoading(true)
     const result = await repository.getAppointmentsByPhone(phone)
     setAppointments(result)
-    const reviews = await repository.getReviews(result.map((a) => a.id))
+    setSearchedPhone(phone)
+    const reviews = await repository.getReviews(result.map((a) => a.id), phone)
     setRatings(Object.fromEntries(reviews.map((r) => [r.appointmentId, r.rating])))
     setIsLoading(false)
   }
 
   async function handleCancel(id: string) {
-    await repository.cancelAppointment(id)
+    await repository.cancelAppointment(id, searchedPhone)
     setAppointments((prev) => prev?.map((a) => (a.id === id ? { ...a, status: "cancelled" } : a)) ?? null)
     toast.success("Agendamento cancelado.")
   }
@@ -48,6 +50,7 @@ export function MeusHorariosPage() {
       await repository.submitReview({
         appointmentId: appointment.id,
         barberId: appointment.barberId,
+        clientPhone: searchedPhone,
         rating,
         comment: null,
       })

@@ -23,6 +23,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { MiniCalendar } from "@/components/ui/MiniCalendar"
 import { cn, formatPriceBRL } from "@/lib/utils"
 import { adminRepository } from "@/lib/repository/adminRepository"
 import { useStaffSession } from "@/lib/auth/StaffSessionContext"
@@ -68,6 +70,15 @@ export function RelatoriosPage() {
   const { session } = useStaffSession()
   const [gran, setGran] = useState<Gran>("month")
   const [ref, setRef] = useState<Date>(new Date())
+  const [dateDialogOpen, setDateDialogOpen] = useState(false)
+  const [dateDialogMode, setDateDialogMode] = useState<"single" | "range">("single")
+  // A custom day-range picked in the calendar (e.g. 20–30). Overrides `gran`
+  // while set; picking a Dia/Mês/Ano tab or a single day clears it.
+  const [customRange, setCustomRange] = useState<{ from: Date; to: Date } | null>(null)
+  const [pendingRange, setPendingRange] = useState<{ from: Date | null; to: Date | null }>({
+    from: null,
+    to: null,
+  })
   const [loading, setLoading] = useState(true)
   const [dre, setDre] = useState<DRE | null>(null)
   const [cashFlow, setCashFlow] = useState<CashFlowBucket[]>([])
@@ -79,10 +90,13 @@ export function RelatoriosPage() {
     upcomingAppointmentsCents: number
   } | null>(null)
 
+  const range: DateRange = customRange
+    ? { from: format(customRange.from, "yyyy-MM-dd"), to: format(customRange.to, "yyyy-MM-dd") }
+    : rangeFor(gran, ref)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const range = rangeFor(gran, ref)
-    const cfGran = gran === "year" ? "month" : "day"
+    const cfGran = gran === "year" && !customRange ? "month" : "day"
     try {
       const [d, cf, fc, ea, txs, bbs] = await Promise.all([
         adminRepository.getDRE(range),
@@ -101,7 +115,8 @@ export function RelatoriosPage() {
     } finally {
       setLoading(false)
     }
-  }, [gran, ref, session])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gran, ref, customRange, session])
 
   useEffect(() => {
     load()
@@ -126,13 +141,20 @@ export function RelatoriosPage() {
       { item: "Taxas de cartão", valor: formatPriceBRL(dre.cardFeesTotalCents) },
       { item: "LUCRO", valor: formatPriceBRL(dre.profitCents) },
     ]
-    const subtitle = `Período: ${periodLabel(gran, ref)}`
+    const subtitle = `Período: ${displayLabel()}`
     if (kind === "pdf") exportPdf("DRE", subtitle, cols, rows)
     else exportXlsx("DRE", cols, rows)
   }
 
   const barberName = (id: string | null) =>
     id ? (barbers.find((b) => b.id === id)?.name ?? "") : ""
+
+  function displayLabel(): string {
+    if (customRange) {
+      return `${format(customRange.from, "dd/MM/yyyy")} – ${format(customRange.to, "dd/MM/yyyy")}`
+    }
+    return periodLabel(gran, ref)
+  }
 
   // Derived figures for the profit hero + charts
   const costsCents = dre ? dre.expensesTotalCents + dre.cardFeesTotalCents : 0
@@ -164,15 +186,34 @@ export function RelatoriosPage() {
           <button
             key={g}
             type="button"
-            onClick={() => setGran(g)}
+            onClick={() => {
+              setCustomRange(null)
+              setGran(g)
+            }}
             className={cn(
               "flex-1 rounded-lg py-2 text-xs font-semibold tracking-wide uppercase transition-colors",
-              gran === g ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              !customRange && gran === g
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground"
             )}
           >
             {GRAN_LABEL[g]}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            setPendingRange({ from: customRange?.from ?? null, to: customRange?.to ?? null })
+            setDateDialogMode("range")
+            setDateDialogOpen(true)
+          }}
+          className={cn(
+            "flex-1 rounded-lg py-2 text-xs font-semibold tracking-wide uppercase transition-colors",
+            customRange ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+          )}
+        >
+          Período
+        </button>
       </div>
 
       {/* Period navigation */}
@@ -180,42 +221,75 @@ export function RelatoriosPage() {
         <button
           type="button"
           onClick={() => setRef((r) => shiftRef(gran, r, -1))}
+          disabled={Boolean(customRange)}
           aria-label="Anterior"
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronLeft className="size-5" />
         </button>
 
-        <div className="relative flex-1">
-          {/* Transparent native date input overlays only the middle (not the arrows),
-              so tapping opens the picker reliably on mobile. */}
-          <input
-            type="date"
-            value={format(ref, "yyyy-MM-dd")}
-            onChange={(e) => e.target.value && setRef(new Date(`${e.target.value}T00:00:00`))}
-            aria-label="Escolher data"
-            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-          />
-          <div className="pointer-events-none flex flex-col items-center py-1">
-            <span className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
-              <CalendarDays className="size-4 text-primary" />
-              {periodLabel(gran, ref)}
-            </span>
-            <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              escolher a data
-            </span>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (customRange) {
+              setPendingRange({ from: customRange.from, to: customRange.to })
+              setDateDialogMode("range")
+            } else {
+              setDateDialogMode("single")
+            }
+            setDateDialogOpen(true)
+          }}
+          className="flex flex-1 flex-col items-center rounded-lg py-1 transition-colors hover:bg-accent active:scale-[0.98]"
+        >
+          <span className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
+            <CalendarDays className="size-4 text-primary" />
+            {displayLabel()}
+          </span>
+          <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+            escolher a data
+          </span>
+        </button>
 
         <button
           type="button"
           onClick={() => setRef((r) => shiftRef(gran, r, 1))}
+          disabled={Boolean(customRange)}
           aria-label="Próximo"
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95 disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronRight className="size-5" />
         </button>
       </div>
+
+      <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{dateDialogMode === "range" ? "Escolher período" : "Escolher data"}</DialogTitle>
+          </DialogHeader>
+          {dateDialogMode === "range" ? (
+            <MiniCalendar
+              mode="range"
+              selectedRange={pendingRange}
+              onSelectRange={(next) => {
+                setPendingRange(next)
+                if (next.from && next.to) {
+                  setCustomRange({ from: next.from, to: next.to })
+                  setDateDialogOpen(false)
+                }
+              }}
+            />
+          ) : (
+            <MiniCalendar
+              selected={ref}
+              onSelect={(date) => {
+                setCustomRange(null)
+                setRef(date)
+                setDateDialogOpen(false)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {loading || !dre ? (
         <div className="flex flex-col gap-3">

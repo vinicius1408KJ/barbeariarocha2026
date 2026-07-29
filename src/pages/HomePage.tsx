@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Brush, Calendar, MapPin, Scissors } from "lucide-react"
+import { Brush, Calendar, CalendarClock, MapPin, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InstagramIcon, RazorIcon } from "@/components/hero/icons"
 import { HeroCarousel } from "@/components/hero/HeroCarousel"
@@ -88,21 +88,30 @@ export function HomePage() {
             <p className="mt-6 max-w-sm text-base text-muted-foreground">
               Mais que um corte, uma experiência.
             </p>
-            <Button
-              render={<Link to="/agendar/servico" />}
-              nativeButton={false}
-              size="lg"
-              className="mt-8 h-12 gap-2 px-7 text-sm"
-            >
-              <Calendar className="size-4" />
-              Agendar Horário
-            </Button>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Precisa remarcar ou cancelar? Acesse{" "}
-              <Link to="/meus-horarios" className="font-medium text-primary hover:underline">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button
+                render={<Link to="/agendar/servico" />}
+                nativeButton={false}
+                size="lg"
+                className="h-12 gap-2 px-7 text-sm"
+              >
+                <Calendar className="size-4" />
+                Agendar Horário
+              </Button>
+              <Button
+                render={<Link to="/meus-horarios" />}
+                nativeButton={false}
+                variant="outline"
+                size="lg"
+                className="h-12 gap-2 px-7 text-sm"
+              >
+                <CalendarClock className="size-4" />
                 Meus Horários
-              </Link>{" "}
-              com o telefone usado no agendamento.
+              </Button>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Precisa remarcar ou cancelar? Acesse Meus Horários com o telefone usado no
+              agendamento.
             </p>
           </motion.div>
 

@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabaseClient"
-import { hashPin } from "@/lib/auth/pin"
 import { normalizePhone } from "@/lib/utils"
 import type {
   Appointment,
@@ -27,15 +26,7 @@ import type {
   Transaction,
   WalkInEntry,
 } from "@/lib/types"
-import type { AdminRepository, CashFlowGranularity, DateRange } from "./adminTypes"
-
-// Random hex salt for new PINs (matches seed convention).
-function randomSalt(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-}
+import type { AdminRepository, CashFlowGranularity, DateRange, LoginBarber } from "./adminTypes"
 
 // yyyy-MM-dd (inclusive) → timestamptz bounds for occurred_at filters.
 function rangeBounds(range: DateRange): { start: string; end: string } {
@@ -48,9 +39,9 @@ type BarberRow = {
   chair_number: number
   avatar_url: string | null
   active: boolean
-  pin_hash: string | null
-  pin_salt: string | null
 }
+
+type LoginBarberRow = BarberRow & { auth_email: string }
 
 type ServiceRow = {
   id: string
@@ -318,21 +309,47 @@ class SupabaseAdminRepository implements AdminRepository {
     return supabase
   }
 
-  async verifyPin(barberId: string, pin: string): Promise<boolean> {
+  // The public view (readable pre-login) lists barbers with their internal
+  // auth email, so the "who's working?" screen can show them before any
+  // session exists.
+  async listBarbersForLogin(): Promise<LoginBarber[]> {
     const { data, error } = await this.client
-      .from("barbers")
-      .select("pin_hash, pin_salt")
-      .eq("id", barberId)
-      .single()
-    if (error || !data?.pin_hash || !data?.pin_salt) return false
-    const hashed = await hashPin(data.pin_salt, pin)
-    return hashed === data.pin_hash
+      .from("barbers_public")
+      .select("id, name, chair_number, avatar_url, active, auth_email")
+      .order("chair_number", { ascending: true })
+    if (error) throw error
+    return (data as LoginBarberRow[]).map((row) => ({ ...mapBarber(row), authEmail: row.auth_email }))
+  }
+
+  // Real Supabase Auth sign-in — the PIN *is* the account password. Success
+  // establishes a server-verified, signed session (not a client-side flag).
+  async verifyPin(authEmail: string, pin: string): Promise<boolean> {
+    const { error } = await this.client.auth.signInWithPassword({
+      email: authEmail,
+      password: pin,
+    })
+    return !error
+  }
+
+  async changePin(newPin: string): Promise<void> {
+    const { error } = await this.client.auth.updateUser({ password: newPin })
+    if (error) throw error
+  }
+
+  async logout(): Promise<void> {
+    await this.client.auth.signOut()
+  }
+
+  async getCurrentBarberId(): Promise<string | null> {
+    const { data } = await this.client.auth.getSession()
+    const barberId = data.session?.user.user_metadata?.barber_id
+    return typeof barberId === "string" ? barberId : null
   }
 
   async listBarbers(): Promise<Barber[]> {
     const { data, error } = await this.client
       .from("barbers")
-      .select("*")
+      .select("id, name, chair_number, avatar_url, active")
       .eq("active", true)
       .order("chair_number", { ascending: true })
     if (error) throw error
@@ -617,17 +634,7 @@ class SupabaseAdminRepository implements AdminRepository {
     if (error) throw error
   }
 
-  // ── Auth / settings ────────────────────────────────────────────
-
-  async changePin(barberId: string, newPin: string): Promise<void> {
-    const salt = randomSalt()
-    const pin_hash = await hashPin(salt, newPin)
-    const { error } = await this.client
-      .from("barbers")
-      .update({ pin_hash, pin_salt: salt })
-      .eq("id", barberId)
-    if (error) throw error
-  }
+  // ── Settings ────────────────────────────────────────────────────
 
   // Uploads a photo to the public "avatars" bucket, saves the URL on the
   // barber, and returns the public URL. A per-barber path keeps one photo

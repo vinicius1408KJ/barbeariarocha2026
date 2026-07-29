@@ -7,15 +7,15 @@ import { Logo } from "@/components/layout/Logo"
 import { cn } from "@/lib/utils"
 import { adminRepository } from "@/lib/repository/adminRepository"
 import { useStaffSession } from "@/lib/auth/StaffSessionContext"
-import type { Barber } from "@/lib/types"
+import type { LoginBarber } from "@/lib/repository/adminTypes"
 
-const PIN_LENGTH = 4
+const PIN_LENGTH = 6
 
 export function LoginPage() {
   const { session, login } = useStaffSession()
   const navigate = useNavigate()
-  const [barbers, setBarbers] = useState<Barber[]>([])
-  const [selected, setSelected] = useState<Barber | null>(null)
+  const [barbers, setBarbers] = useState<LoginBarber[]>([])
+  const [selected, setSelected] = useState<LoginBarber | null>(null)
   const [pin, setPin] = useState("")
   const [checking, setChecking] = useState(false)
 
@@ -24,13 +24,13 @@ export function LoginPage() {
   }, [session, navigate])
 
   useEffect(() => {
-    adminRepository.listBarbers().then(setBarbers).catch(() => setBarbers([]))
+    adminRepository.listBarbersForLogin().then(setBarbers).catch(() => setBarbers([]))
   }, [])
 
   useEffect(() => {
     if (!selected || pin.length !== PIN_LENGTH || checking) return
     setChecking(true)
-    login(selected.id, selected.name, pin).then((ok) => {
+    login(selected.id, selected.name, selected.authEmail, pin).then((ok) => {
       if (ok) {
         navigate("/rocha-adm/agenda", { replace: true })
       } else {

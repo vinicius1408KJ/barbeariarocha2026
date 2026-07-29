@@ -149,10 +149,13 @@ class LocalBookingRepository implements BookingRepository {
       .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
   }
 
-  async cancelAppointment(appointmentId: string): Promise<void> {
+  async cancelAppointment(appointmentId: string, phone: string): Promise<void> {
+    const normalized = normalizePhone(phone)
     const appointments = readStore<Appointment[]>(KEYS.appointments, [])
     const updated = appointments.map((a) =>
-      a.id === appointmentId ? { ...a, status: "cancelled" as const } : a
+      a.id === appointmentId && a.clientPhone === normalized
+        ? { ...a, status: "cancelled" as const }
+        : a
     )
     writeStore(KEYS.appointments, updated)
   }
@@ -166,6 +169,7 @@ class LocalBookingRepository implements BookingRepository {
   async submitReview(input: {
     appointmentId: string
     barberId: string
+    clientPhone: string
     rating: number
     comment: string | null
   }): Promise<void> {
@@ -182,7 +186,7 @@ class LocalBookingRepository implements BookingRepository {
     writeStore(KEYS.reviews, filtered)
   }
 
-  async getReviews(appointmentIds: string[]): Promise<Review[]> {
+  async getReviews(appointmentIds: string[], _phone: string): Promise<Review[]> {
     const reviews = readStore<Review[]>(KEYS.reviews, [])
     return reviews.filter((r) => appointmentIds.includes(r.appointmentId))
   }
