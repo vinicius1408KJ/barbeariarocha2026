@@ -10,14 +10,6 @@ import { BarberSelectPage } from "@/pages/booking/BarberSelectPage"
 import { DateTimeSelectPage } from "@/pages/booking/DateTimeSelectPage"
 import { ContactInfoPage } from "@/pages/booking/ContactInfoPage"
 import { ConfirmationPage } from "@/pages/booking/ConfirmationPage"
-import { PainelLayout } from "@/pages/painel/PainelLayout"
-import { PainelGuard } from "@/pages/painel/PainelGuard"
-import { LoginPage } from "@/pages/painel/LoginPage"
-import { AgendaPage } from "@/pages/painel/agenda/AgendaPage"
-import { NotificacoesPage } from "@/pages/painel/notificacoes/NotificacoesPage"
-import { FinanceiroPage } from "@/pages/painel/financeiro/FinanceiroPage"
-import { RelatoriosPage } from "@/pages/painel/relatorios/RelatoriosPage"
-import { ConfiguracoesPage } from "@/pages/painel/configuracoes/ConfiguracoesPage"
 
 function App() {
   return (
@@ -26,19 +18,6 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/meus-horarios" element={<MeusHorariosPage />} />
-
-          <Route path="/painel" element={<PainelLayout />}>
-            <Route path="login" element={<LoginPage />} />
-            <Route element={<PainelGuard />}>
-              <Route index element={<Navigate to="/painel/agenda" replace />} />
-              <Route path="agenda" element={<AgendaPage />} />
-              <Route path="notificacoes" element={<NotificacoesPage />} />
-              <Route path="financeiro" element={<FinanceiroPage />} />
-              <Route path="relatorios" element={<RelatoriosPage />} />
-              <Route path="configuracoes" element={<ConfiguracoesPage />} />
-            </Route>
-          </Route>
-
           <Route path="/agendar" element={<BookingLayout />}>
             <Route index element={<Navigate to="/agendar/servico" replace />} />
             <Route path="servico" element={<ServiceSelectPage />} />

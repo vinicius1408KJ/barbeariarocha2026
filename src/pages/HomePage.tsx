@@ -48,12 +48,6 @@ export function HomePage() {
               <InstagramIcon className="size-4" />
               <span className="hidden sm:inline normal-case tracking-normal">@{INSTAGRAM_HANDLE}</span>
             </a>
-            <Link
-              to="/painel"
-              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
-            >
-              Painel
-            </Link>
           </div>
         </div>
 

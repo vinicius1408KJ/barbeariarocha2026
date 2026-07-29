@@ -20,7 +20,7 @@ export function LoginPage() {
   const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    if (session) navigate("/painel/agenda", { replace: true })
+    if (session) navigate("/rocha-adm/agenda", { replace: true })
   }, [session, navigate])
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function LoginPage() {
     setChecking(true)
     login(selected.id, selected.name, pin).then((ok) => {
       if (ok) {
-        navigate("/painel/agenda", { replace: true })
+        navigate("/rocha-adm/agenda", { replace: true })
       } else {
         toast.error("PIN incorreto.")
         setPin("")

@@ -7,17 +7,17 @@ import { useStaffSession } from "@/lib/auth/StaffSessionContext"
 import { NotificationsProvider, useNotifications } from "@/lib/notifications/NotificationsContext"
 
 const NAV = [
-  { to: "/painel/agenda", label: "Agenda", icon: CalendarDays },
-  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
-  { to: "/painel/relatorios", label: "Relatórios", icon: BarChart3 },
-  { to: "/painel/configuracoes", label: "Config", icon: Settings },
+  { to: "/rocha-adm/agenda", label: "Agenda", icon: CalendarDays },
+  { to: "/rocha-adm/financeiro", label: "Financeiro", icon: Wallet },
+  { to: "/rocha-adm/relatorios", label: "Relatórios", icon: BarChart3 },
+  { to: "/rocha-adm/configuracoes", label: "Config", icon: Settings },
 ]
 
 function NotificationBell() {
   const { unread } = useNotifications()
   return (
     <NavLink
-      to="/painel/notificacoes"
+      to="/rocha-adm/notificacoes"
       className={({ isActive }) =>
         cn(
           "relative flex size-9 items-center justify-center rounded-lg transition-colors",
@@ -44,14 +44,14 @@ export function PainelGuard() {
   const outlet = useOutlet()
 
   if (!session) {
-    return <Navigate to="/painel/login" replace state={{ from: location.pathname }} />
+    return <Navigate to="/rocha-adm/login" replace state={{ from: location.pathname }} />
   }
 
   return (
     <NotificationsProvider>
     <div className="min-h-svh bg-background pb-20 sm:pb-0">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <Link to="/painel/agenda">
+        <Link to="/rocha-adm/agenda">
           <Logo />
         </Link>
         <div className="flex items-center gap-4">
