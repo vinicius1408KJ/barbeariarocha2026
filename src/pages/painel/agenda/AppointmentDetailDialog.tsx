@@ -32,10 +32,11 @@ const PAYMENT_METHODS: PaymentMethod[] = ["pix", "cartao", "dinheiro", "vale"]
 
 const ZERO_FEES: CardFees = { debitoPercent: 0, creditoVistaPercent: 0, creditoParceladoPercent: 0 }
 
-// Which status a barber can move to next, given the current one.
+// Simplified flow: from a pending appointment, the barber can only start it
+// or mark a no-show. Once started, "Fechar comanda" completes it (below).
 const NEXT_STATUS: Partial<Record<AppointmentStatus, AppointmentStatus[]>> = {
-  scheduled: ["confirmed", "no_show"],
-  confirmed: ["waiting", "no_show"],
+  scheduled: ["in_progress", "no_show"],
+  confirmed: ["in_progress", "no_show"],
   waiting: ["in_progress", "no_show"],
   in_progress: [],
 }
@@ -144,11 +145,11 @@ export function AppointmentDetailDialog({
         payment === "cartao" ? cardType : null,
         feeCents
       )
-      toast.success("Atendimento finalizado!")
+      toast.success("Comanda fechada!")
       onChanged()
       onOpenChange(false)
     } catch {
-      toast.error("Não foi possível finalizar o atendimento.")
+      toast.error("Não foi possível fechar a comanda.")
     } finally {
       setBusy(false)
     }
@@ -230,7 +231,7 @@ export function AppointmentDetailDialog({
                   onClick={() => setStatus(next)}
                 >
                   {next === "no_show" ? <X className="size-3.5" /> : null}
-                  {STATUS_LABEL[next]}
+                  {next === "in_progress" ? "Iniciar" : STATUS_LABEL[next]}
                 </Button>
               ))}
             </div>
@@ -319,7 +320,7 @@ export function AppointmentDetailDialog({
 
                 <Button disabled={busy} onClick={complete} className="h-10">
                   <CheckCircle2 className="size-4" />
-                  Finalizar atendimento
+                  Fechar comanda
                 </Button>
               </div>
             )}

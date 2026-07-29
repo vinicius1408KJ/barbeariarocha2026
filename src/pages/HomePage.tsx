@@ -78,6 +78,13 @@ export function HomePage() {
               <Calendar className="size-4" />
               Agendar Horário
             </Button>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Precisa remarcar ou cancelar? Acesse{" "}
+              <Link to="/meus-horarios" className="font-medium text-primary hover:underline">
+                Meus Horários
+              </Link>{" "}
+              com o telefone usado no agendamento.
+            </p>
           </motion.div>
 
           <motion.div
