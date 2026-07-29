@@ -3,6 +3,7 @@ import { motion } from "framer-motion"
 import { Brush, Calendar, MapPin, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InstagramIcon, RazorIcon } from "@/components/hero/icons"
+import { HeroCarousel } from "@/components/hero/HeroCarousel"
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
@@ -11,6 +12,24 @@ const INSTAGRAM_URL = `https://instagram.com/${INSTAGRAM_HANDLE}`
 
 const ADDRESS = "R. Braulino Botelho - Centro, São Raimundo das Mangabeiras - MA, 65840-000"
 const MAPS_URL = "https://share.google/CtaphZM0GHdThnUuf"
+
+const FEATURES_BG_IMAGE_URL =
+  "https://www.guiadasemana.com.br/contentFiles/image/opt_w1024h1024/2017/02/FEA/49393_shutterstock-barbearia.jpg"
+
+const HERO_IMAGES = [
+  {
+    src: "https://img.magnific.com/fotos-gratis/homem-num-salao-de-barbearia-a-cortar-o-cabelo-e-a-barba_1303-20953.jpg",
+    alt: "Barbeiro finalizando corte e barba na Barbearia Rocha",
+  },
+  {
+    src: FEATURES_BG_IMAGE_URL,
+    alt: "Ambiente da Barbearia Rocha",
+  },
+  {
+    src: "https://i.ibb.co/yBgkJ4Km/image.png",
+    alt: "Barbearia Rocha",
+  },
+]
 
 const FEATURES = [
   { icon: Scissors, label: "Cortes Clássicos" },
@@ -91,24 +110,25 @@ export function HomePage() {
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
-            className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/5 lg:aspect-auto lg:h-[560px]"
+            className="relative aspect-[4/5] lg:aspect-auto lg:h-[560px]"
           >
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(circle at 72% 28%, rgba(201,162,74,0.18), transparent 60%), linear-gradient(160deg, #171717 0%, #0a0a0a 70%)",
-              }}
-            />
-            <Scissors
-              className="absolute -right-8 -bottom-8 size-64 text-white/[0.04]"
-              strokeWidth={0.5}
+            <HeroCarousel
+              images={HERO_IMAGES}
+              className="size-full rounded-2xl border border-white/5"
             />
           </motion.div>
         </div>
 
-        <div className="border-t border-border bg-card/40">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="relative overflow-hidden border-t border-border">
+          <img
+            src={FEATURES_BG_IMAGE_URL}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 size-full object-cover opacity-20"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-background/85" />
+          <div className="relative mx-auto grid max-w-7xl grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {FEATURES.map(({ icon: Icon, label }) => (
               <div
                 key={label}

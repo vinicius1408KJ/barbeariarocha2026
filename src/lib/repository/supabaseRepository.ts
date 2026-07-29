@@ -166,6 +166,14 @@ class SupabaseBookingRepository implements BookingRepository {
         start: timeToMinutes(b.start_time.slice(0, 5)),
         end: timeToMinutes(b.end_time.slice(0, 5)),
       })),
+      ...(hours.lunch_start && hours.lunch_end
+        ? [
+            {
+              start: timeToMinutes(hours.lunch_start.slice(0, 5)),
+              end: timeToMinutes(hours.lunch_end.slice(0, 5)),
+            },
+          ]
+        : []),
     ]
 
     const openMinutes = timeToMinutes(hours.open_time.slice(0, 5))

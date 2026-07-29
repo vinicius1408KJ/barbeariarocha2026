@@ -21,4 +21,6 @@ export const SEED_BUSINESS_HOURS: BusinessHours[] = [1, 2, 3, 4, 5, 6].map((dayO
   openTime: "09:00",
   closeTime: "19:00",
   slotGranularityMinutes: 15,
+  lunchStart: null,
+  lunchEnd: null,
 }))

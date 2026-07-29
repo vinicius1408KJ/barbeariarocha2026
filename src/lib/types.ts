@@ -210,4 +210,6 @@ export type BusinessHours = {
   openTime: string // "HH:mm"
   closeTime: string // "HH:mm"
   slotGranularityMinutes: number
+  lunchStart: string | null // "HH:mm"
+  lunchEnd: string | null // "HH:mm"
 }

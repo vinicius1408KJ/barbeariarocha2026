@@ -76,6 +76,9 @@ class LocalBookingRepository implements BookingRepository {
       ...blockedSlots
         .filter((b) => b.barberId === barberId && b.date === date)
         .map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime) })),
+      ...(hours.lunchStart && hours.lunchEnd
+        ? [{ start: timeToMinutes(hours.lunchStart), end: timeToMinutes(hours.lunchEnd) }]
+        : []),
     ]
 
     const openMinutes = timeToMinutes(hours.openTime)

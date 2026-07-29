@@ -795,7 +795,7 @@ class SupabaseAdminRepository implements AdminRepository {
   async listBusinessHours(): Promise<BusinessHours[]> {
     const { data, error } = await this.client
       .from("business_hours")
-      .select("day_of_week, open_time, close_time, slot_granularity_minutes")
+      .select("day_of_week, open_time, close_time, slot_granularity_minutes, lunch_start, lunch_end")
       .is("barber_id", null)
       .order("day_of_week", { ascending: true })
     if (error) throw error
@@ -804,11 +804,15 @@ class SupabaseAdminRepository implements AdminRepository {
       open_time: string
       close_time: string
       slot_granularity_minutes: number
+      lunch_start: string | null
+      lunch_end: string | null
     }[]).map((r) => ({
       dayOfWeek: r.day_of_week,
       openTime: r.open_time.slice(0, 5),
       closeTime: r.close_time.slice(0, 5),
       slotGranularityMinutes: r.slot_granularity_minutes,
+      lunchStart: r.lunch_start ? r.lunch_start.slice(0, 5) : null,
+      lunchEnd: r.lunch_end ? r.lunch_end.slice(0, 5) : null,
     }))
   }
 
@@ -828,6 +832,8 @@ class SupabaseAdminRepository implements AdminRepository {
         open_time: d.openTime,
         close_time: d.closeTime,
         slot_granularity_minutes: d.slotGranularityMinutes,
+        lunch_start: d.lunchStart,
+        lunch_end: d.lunchEnd,
       }))
     )
     if (insErr) throw insErr
