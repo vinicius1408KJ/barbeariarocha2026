@@ -206,29 +206,19 @@ class SupabaseBookingRepository implements BookingRepository {
     clientName: string
     clientPhone: string
   }): Promise<Appointment> {
-    const { data: serviceRow, error: serviceError } = await this.client
-      .from("services")
-      .select("duration_minutes")
-      .eq("id", input.serviceId)
-      .single()
-    if (serviceError) throw serviceError
-
-    const endTime = minutesToTime(timeToMinutes(input.startTime) + serviceRow.duration_minutes)
-
-    const { data, error } = await this.client
-      .from("appointments")
-      .insert({
-        barber_id: input.barberId,
-        service_id: input.serviceId,
-        client_name: input.clientName,
-        client_phone: normalizePhone(input.clientPhone),
-        date: input.date,
-        start_time: input.startTime,
-        end_time: endTime,
-        status: "scheduled",
-      })
-      .select("*")
-      .single()
+    // A plain table insert can't also read the row back for an
+    // unauthenticated client (appointments has no public SELECT policy, by
+    // design, to keep other clients' names/phones private) — PostgREST's
+    // RETURNING then fails as a row-level-security violation on the whole
+    // request. This RPC inserts and returns just the one row it created.
+    const { data, error } = await this.client.rpc("create_public_appointment", {
+      p_barber_id: input.barberId,
+      p_service_id: input.serviceId,
+      p_date: input.date,
+      p_start_time: input.startTime,
+      p_client_name: input.clientName,
+      p_client_phone: normalizePhone(input.clientPhone),
+    })
     if (error) throw error
 
     return mapAppointment(data as AppointmentRow)
