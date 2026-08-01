@@ -47,6 +47,18 @@ export function minutesToTime(minutes: number): string {
   return `${h}:${m}`
 }
 
+// Local calendar date as YYYY-MM-DD. Date#toISOString() converts to UTC first,
+// which in Brazil (UTC-3) already rolls over to "tomorrow" from ~21:00 local
+// onward — using it here made "today" stop matching itself late at night,
+// which in turn made every remaining slot on the actual current day look
+// like it belonged to a future date and skip the "already in the past" check.
+export function localDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 export function intervalsOverlap(
   aStart: number,
   aEnd: number,

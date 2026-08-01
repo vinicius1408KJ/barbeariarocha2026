@@ -35,10 +35,17 @@ export type AppointmentStatus =
 
 export type PaymentMethod = "pix" | "cartao" | "dinheiro" | "vale"
 
+export type AppointmentService = {
+  serviceId: string
+  name: string
+  durationMinutes: number
+  priceCentsAtBooking: number
+}
+
 export type Appointment = {
   id: string
   barberId: string
-  serviceId: string
+  services: AppointmentService[]
   clientName: string
   clientPhone: string
   date: string // "yyyy-MM-dd"
@@ -69,7 +76,7 @@ export type WalkInEntry = {
   id: string
   clientName: string
   clientPhone: string | null
-  serviceId: string | null
+  serviceIds: string[]
   barberId: string | null
   status: WalkInStatus
   arrivedAt: string

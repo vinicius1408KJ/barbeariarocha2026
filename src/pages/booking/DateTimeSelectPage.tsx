@@ -7,7 +7,7 @@ import { CalendarOff, ChevronLeft, ChevronRight, Scissors } from "lucide-react"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { TimeSlotGrid } from "@/components/booking/TimeSlotGrid"
 import { Button } from "@/components/ui/button"
-import { useBookingFlow } from "@/hooks/useBookingFlow"
+import { cartTotals, useBookingFlow } from "@/hooks/useBookingFlow"
 import { useAvailableSlots } from "@/hooks/useAvailableSlots"
 import { useOpenWeekdays } from "@/hooks/useOpenWeekdays"
 import { formatPriceBRL } from "@/lib/utils"
@@ -45,10 +45,12 @@ export function DateTimeSelectPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openWeekdays])
 
+  const totals = cartTotals(state.cart)
+
   const { slots, isLoading } = useAvailableSlots({
     barberId: state.barber?.id ?? null,
     date,
-    serviceDurationMinutes: state.service?.durationMinutes ?? null,
+    totalDurationMinutes: totals.durationMinutes || null,
   })
 
   function handleDateChange(value: string) {
@@ -87,20 +89,31 @@ export function DateTimeSelectPage() {
       <PageHeader backTo="/agendar/barbeiro" backLabel="Voltar" />
 
       <div className="mx-auto max-w-lg px-6 py-6">
-        {state.service && (
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Scissors className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">{state.service.name}</p>
-              <p className="text-xs font-medium text-muted-foreground">
-                {state.service.durationMinutes} min
-              </p>
+        {state.cart.length > 0 && (
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            {state.cart.map((service) => (
+              <div
+                key={service.id}
+                className="flex items-center gap-3 border-b border-border/60 py-2 first:pt-0 last:border-0 last:pb-0"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Scissors className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{service.name}</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {service.durationMinutes} min
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-primary">
+                  {formatPriceBRL(service.priceCents)}
+                </p>
+              </div>
+            ))}
+            <div className="flex items-center justify-between pt-2 text-sm font-semibold">
+              <span className="text-foreground">{totals.durationMinutes} min total</span>
+              <span className="text-primary">{formatPriceBRL(totals.priceCents)}</span>
             </div>
-            <p className="shrink-0 text-sm font-semibold text-primary">
-              {formatPriceBRL(state.service.priceCents)}
-            </p>
           </div>
         )}
 

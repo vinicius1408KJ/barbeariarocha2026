@@ -25,7 +25,6 @@ import type {
   ClientHistory,
   PaymentMethod,
   Review,
-  Service,
 } from "@/lib/types"
 
 const PAYMENT_METHODS: PaymentMethod[] = ["pix", "cartao", "dinheiro", "vale"]
@@ -49,14 +48,12 @@ function waLink(phone: string, message: string): string {
 
 export function AppointmentDetailDialog({
   appointment,
-  service,
   barberName,
   open,
   onOpenChange,
   onChanged,
 }: {
   appointment: Appointment | null
-  service: Service | undefined
   barberName: string
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -102,12 +99,13 @@ export function AppointmentDetailDialog({
 
   if (!appointment) return null
 
-  const priceDefault = service ? formatPriceBRL(service.priceCents) : ""
+  const totalPriceCents = appointment.services.reduce((sum, s) => sum + s.priceCentsAtBooking, 0)
+  const priceDefault = formatPriceBRL(totalPriceCents)
   const isCompletable = appointment.status === "in_progress"
 
   const grossCents = amount
     ? Math.round(parseFloat(amount.replace(",", ".")) * 100) || 0
-    : (service?.priceCents ?? 0)
+    : totalPriceCents
   const feeCents = payment === "cartao" && cardType ? cardFeeCents(fees, cardType, grossCents) : 0
   const netCents = grossCents - feeCents
 
@@ -163,7 +161,7 @@ export function AppointmentDetailDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {appointment.startTime} · {service?.name ?? "Serviço"}
+            {appointment.startTime} · {appointment.services.map((s) => s.name).join(" + ") || "Serviço"}
           </DialogTitle>
           <DialogDescription>
             {appointment.clientName} · {formatPhone(appointment.clientPhone)}

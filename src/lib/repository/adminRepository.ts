@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient"
-import { normalizePhone } from "@/lib/utils"
+import { localDateString, normalizePhone } from "@/lib/utils"
 import type {
   Appointment,
   AppointmentStatus,
@@ -52,10 +52,15 @@ type ServiceRow = {
   sort_order: number
 }
 
+type AppointmentServiceRow = {
+  service_id: string
+  price_cents_at_booking: number
+  services: { name: string; duration_minutes: number } | { name: string; duration_minutes: number }[] | null
+}
+
 type AppointmentRow = {
   id: string
   barber_id: string
-  service_id: string
   client_name: string
   client_phone: string
   date: string
@@ -68,6 +73,7 @@ type AppointmentRow = {
   payment_method: PaymentMethod | null
   completed_at: string | null
   created_at: string
+  appointment_services?: AppointmentServiceRow[]
 }
 
 type BlockedSlotRow = {
@@ -84,7 +90,7 @@ type WalkInRow = {
   id: string
   client_name: string
   client_phone: string | null
-  service_id: string | null
+  service_ids: string[]
   barber_id: string | null
   status: WalkInEntry["status"]
   arrived_at: string
@@ -165,7 +171,15 @@ function mapAppointment(row: AppointmentRow): Appointment {
   return {
     id: row.id,
     barberId: row.barber_id,
-    serviceId: row.service_id,
+    services: (row.appointment_services ?? []).map((as) => {
+      const svc = Array.isArray(as.services) ? as.services[0] : as.services
+      return {
+        serviceId: as.service_id,
+        name: svc?.name ?? "",
+        durationMinutes: svc?.duration_minutes ?? 0,
+        priceCentsAtBooking: as.price_cents_at_booking,
+      }
+    }),
     clientName: row.client_name,
     clientPhone: row.client_phone,
     date: row.date,
@@ -198,7 +212,7 @@ function mapWalkIn(row: WalkInRow): WalkInEntry {
     id: row.id,
     clientName: row.client_name,
     clientPhone: row.client_phone,
-    serviceId: row.service_id,
+    serviceIds: row.service_ids,
     barberId: row.barber_id,
     status: row.status,
     arrivedAt: row.arrived_at,
@@ -369,7 +383,7 @@ class SupabaseAdminRepository implements AdminRepository {
   async listAppointmentsForBarber(barberId: string, date: string): Promise<Appointment[]> {
     const { data, error } = await this.client
       .from("appointments")
-      .select("*")
+      .select("*, appointment_services(service_id, price_cents_at_booking, services(name, duration_minutes))")
       .eq("barber_id", barberId)
       .eq("date", date)
       .order("start_time", { ascending: true })
@@ -408,7 +422,7 @@ class SupabaseAdminRepository implements AdminRepository {
     const normalized = normalizePhone(phone)
     const { data, error } = await this.client
       .from("appointments")
-      .select("date, price_paid_cents, service_id, services(name)")
+      .select("date, price_paid_cents, appointment_services(services(name))")
       .eq("client_phone", normalized)
       .eq("status", "completed")
       .order("date", { ascending: false })
@@ -417,16 +431,18 @@ class SupabaseAdminRepository implements AdminRepository {
     type HistoryRow = {
       date: string
       price_paid_cents: number | null
-      services: { name: string } | { name: string }[] | null
+      appointment_services: { services: { name: string } | { name: string }[] | null }[]
     }
     const rows = (data ?? []) as unknown as HistoryRow[]
 
     const totalSpentCents = rows.reduce((s, r) => s + (r.price_paid_cents ?? 0), 0)
     const counts = new Map<string, number>()
     for (const r of rows) {
-      const svc = Array.isArray(r.services) ? r.services[0] : r.services
-      const name = svc?.name
-      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+      for (const as of r.appointment_services) {
+        const svc = Array.isArray(as.services) ? as.services[0] : as.services
+        const name = svc?.name
+        if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+      }
     }
     let favoriteService: string | null = null
     let max = 0
@@ -586,7 +602,7 @@ class SupabaseAdminRepository implements AdminRepository {
   async createWalkIn(input: {
     clientName: string
     clientPhone: string | null
-    serviceId: string | null
+    serviceIds: string[]
     barberId: string
   }): Promise<WalkInEntry> {
     const { data, error } = await this.client
@@ -594,7 +610,7 @@ class SupabaseAdminRepository implements AdminRepository {
       .insert({
         client_name: input.clientName,
         client_phone: input.clientPhone ? normalizePhone(input.clientPhone) : null,
-        service_id: input.serviceId,
+        service_ids: input.serviceIds,
         barber_id: input.barberId,
         status: "waiting",
       })
@@ -616,7 +632,7 @@ class SupabaseAdminRepository implements AdminRepository {
   // revenue, finance and DRE just like a scheduled appointment.
   async completeWalkIn(input: {
     walkInId: string
-    serviceId: string
+    serviceIds: string[]
     amountCents: number
     paymentMethod: PaymentMethod
     cardType?: CardType | null
@@ -625,7 +641,7 @@ class SupabaseAdminRepository implements AdminRepository {
     const isCard = input.paymentMethod === "cartao"
     const { error } = await this.client.rpc("complete_walk_in", {
       p_walk_in_id: input.walkInId,
-      p_service_id: input.serviceId,
+      p_service_ids: input.serviceIds,
       p_amount_cents: input.amountCents,
       p_payment_method: input.paymentMethod,
       p_card_type: isCard ? (input.cardType ?? null) : null,
@@ -785,11 +801,11 @@ class SupabaseAdminRepository implements AdminRepository {
   }
 
   // Hard-delete when the service was never used; otherwise deactivate it to
-  // preserve appointment/transaction history (service_id is a FK).
+  // preserve appointment/transaction history (appointment_services.service_id is a FK).
   async deleteService(id: string): Promise<"deleted" | "deactivated"> {
     const { error } = await this.client.from("services").delete().eq("id", id)
     if (!error) return "deleted"
-    // 23503 = foreign_key_violation (service referenced by appointments)
+    // 23503 = foreign_key_violation (service referenced by appointment_services)
     if ((error as { code?: string }).code === "23503") {
       await this.updateService(id, { active: false })
       return "deactivated"
@@ -1154,19 +1170,18 @@ class SupabaseAdminRepository implements AdminRepository {
       .filter((s) => s.active)
       .reduce((s, sub) => s + sub.amountCents, 0)
 
-    // Upcoming scheduled appointments (from today forward) × their service price
-    const today = new Date().toISOString().slice(0, 10)
+    // Upcoming scheduled appointments (from today forward) × their booked price,
+    // summed across every service in each appointment.
+    const today = localDateString(new Date())
     const { data: appts } = await this.client
       .from("appointments")
-      .select("service_id, status, date")
+      .select("status, date, appointment_services(price_cents_at_booking)")
       .gte("date", today)
       .in("status", ["scheduled", "confirmed", "waiting", "in_progress"])
-    const { data: services } = await this.client.from("services").select("id, price_cents")
-    const priceOf = new Map<string, number>(
-      (services ?? []).map((s: { id: string; price_cents: number }) => [s.id, s.price_cents])
-    )
-    const upcomingAppointmentsCents = (appts ?? []).reduce(
-      (sum: number, a: { service_id: string }) => sum + (priceOf.get(a.service_id) ?? 0),
+
+    type ForecastRow = { appointment_services: { price_cents_at_booking: number }[] }
+    const upcomingAppointmentsCents = ((appts ?? []) as unknown as ForecastRow[]).reduce(
+      (sum, a) => sum + a.appointment_services.reduce((s, as) => s + as.price_cents_at_booking, 0),
       0
     )
 

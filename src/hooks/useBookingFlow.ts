@@ -2,7 +2,7 @@ import { createContext, useContext } from "react"
 import type { Barber, Service } from "@/lib/types"
 
 export type BookingState = {
-  service: Service | null
+  cart: Service[]
   barber: Barber | null
   date: string | null
   time: string | null
@@ -11,14 +11,16 @@ export type BookingState = {
 }
 
 export type BookingAction =
-  | { type: "SELECT_SERVICE"; service: Service }
+  | { type: "ADD_SERVICE"; service: Service }
+  | { type: "REMOVE_SERVICE"; serviceId: string }
+  | { type: "CLEAR_CART" }
   | { type: "SELECT_BARBER"; barber: Barber }
   | { type: "SELECT_DATETIME"; date: string; time: string }
   | { type: "SET_CONTACT"; name: string; phone: string }
   | { type: "RESET" }
 
 export const initialBookingState: BookingState = {
-  service: null,
+  cart: [],
   barber: null,
   date: null,
   time: null,
@@ -28,8 +30,13 @@ export const initialBookingState: BookingState = {
 
 export function bookingReducer(state: BookingState, action: BookingAction): BookingState {
   switch (action.type) {
-    case "SELECT_SERVICE":
-      return { ...state, service: action.service }
+    case "ADD_SERVICE":
+      if (state.cart.some((s) => s.id === action.service.id)) return state
+      return { ...state, cart: [...state.cart, action.service] }
+    case "REMOVE_SERVICE":
+      return { ...state, cart: state.cart.filter((s) => s.id !== action.serviceId) }
+    case "CLEAR_CART":
+      return { ...state, cart: [] }
     case "SELECT_BARBER":
       return { ...state, barber: action.barber }
     case "SELECT_DATETIME":
@@ -41,6 +48,16 @@ export function bookingReducer(state: BookingState, action: BookingAction): Book
     default:
       return state
   }
+}
+
+export function cartTotals(cart: Service[]): { durationMinutes: number; priceCents: number } {
+  return cart.reduce(
+    (acc, s) => ({
+      durationMinutes: acc.durationMinutes + s.durationMinutes,
+      priceCents: acc.priceCents + s.priceCents,
+    }),
+    { durationMinutes: 0, priceCents: 0 }
+  )
 }
 
 export const BOOKING_SESSION_KEY = "br_booking_session"

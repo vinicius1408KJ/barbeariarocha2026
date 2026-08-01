@@ -27,7 +27,7 @@ export function WalkInDialog({
 }) {
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
-  const [serviceId, setServiceId] = useState<string | null>(null)
+  const [serviceIds, setServiceIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
   async function submit() {
@@ -40,13 +40,13 @@ export function WalkInDialog({
       await adminRepository.createWalkIn({
         clientName: name.trim(),
         clientPhone: phone.trim() || null,
-        serviceId,
+        serviceIds,
         barberId,
       })
       toast.success("Adicionado à fila.")
       setName("")
       setPhone("")
-      setServiceId(null)
+      setServiceIds([])
       onCreated()
       onOpenChange(false)
     } catch {
@@ -73,16 +73,20 @@ export function WalkInDialog({
             <Input id="wi-phone" placeholder="(11) 91234-5678" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Serviço (opcional)</Label>
+            <Label>Serviços (opcional)</Label>
             <div className="grid grid-cols-2 gap-2">
               {services.map((s) => (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setServiceId((prev) => (prev === s.id ? null : s.id))}
+                  onClick={() =>
+                    setServiceIds((prev) =>
+                      prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                    )
+                  }
                   className={
                     "h-9 rounded-lg border px-2 text-xs font-medium transition-colors " +
-                    (serviceId === s.id
+                    (serviceIds.includes(s.id)
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background text-foreground hover:border-primary/50")
                   }

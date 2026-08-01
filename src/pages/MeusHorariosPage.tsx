@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { StarRating } from "@/components/ui/StarRating"
 import { useRepository } from "@/lib/repository/RepositoryContext"
-import { useServices } from "@/hooks/useServices"
 import { useBarbers } from "@/hooks/useBarbers"
 import { formatPriceBRL } from "@/lib/utils"
 import { STATUS_LABEL } from "@/lib/statusLabels"
@@ -18,7 +17,6 @@ import type { Appointment } from "@/lib/types"
 
 export function MeusHorariosPage() {
   const { repository } = useRepository()
-  const { services } = useServices()
   const { barbers } = useBarbers()
   const [phone, setPhone] = useState("")
   const [searchedPhone, setSearchedPhone] = useState("")
@@ -96,15 +94,17 @@ export function MeusHorariosPage() {
           )}
 
           {appointments?.map((appointment) => {
-            const service = services.find((s) => s.id === appointment.serviceId)
             const barber = barbers.find((b) => b.id === appointment.barberId)
             const canCancel = appointment.status === "scheduled"
+            const totalPriceCents = appointment.services.reduce((sum, s) => sum + s.priceCentsAtBooking, 0)
 
             return (
               <div key={appointment.id} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{service?.name ?? "Serviço"}</p>
+                    <p className="font-medium text-foreground">
+                      {appointment.services.map((s) => s.name).join(" + ") || "Serviço"}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {barber?.name} · {format(new Date(`${appointment.date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })} às {appointment.startTime}
                     </p>
@@ -116,7 +116,7 @@ export function MeusHorariosPage() {
 
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-primary">
-                    {service ? formatPriceBRL(service.priceCents) : ""}
+                    {formatPriceBRL(totalPriceCents)}
                   </span>
                   {canCancel && (
                     <button

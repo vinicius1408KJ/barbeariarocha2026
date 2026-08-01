@@ -1,11 +1,14 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Calendar, LayoutGrid, List, Search } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
+import { Calendar, CheckCircle2, LayoutGrid, List, Search } from "lucide-react"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { ServiceCard, ServiceGridCard } from "@/components/booking/ServiceCard"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
-import { useBookingFlow } from "@/hooks/useBookingFlow"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { cn, formatDurationShort, formatPriceBRL } from "@/lib/utils"
+import { cartTotals, useBookingFlow } from "@/hooks/useBookingFlow"
 import { useServices } from "@/hooks/useServices"
 import type { Service } from "@/lib/types"
 
@@ -13,17 +16,35 @@ type ViewMode = "list" | "grid"
 
 export function ServiceSelectPage() {
   const { services, isLoading } = useServices()
-  const { dispatch } = useBookingFlow()
+  const { state, dispatch } = useBookingFlow()
   const navigate = useNavigate()
   const [view, setView] = useState<ViewMode>("list")
+  const [justAdded, setJustAdded] = useState<Service | null>(null)
+  const [addedDialogOpen, setAddedDialogOpen] = useState(false)
 
-  function handleSelect(service: Service) {
-    dispatch({ type: "SELECT_SERVICE", service })
+  const { cart } = state
+  const totals = cartTotals(cart)
+
+  function handleToggle(service: Service) {
+    const inCart = cart.some((s) => s.id === service.id)
+    if (inCart) {
+      dispatch({ type: "REMOVE_SERVICE", serviceId: service.id })
+      return
+    }
+    dispatch({ type: "ADD_SERVICE", service })
+    setJustAdded(service)
+    setAddedDialogOpen(true)
+  }
+
+  function handleContinue() {
+    setAddedDialogOpen(false)
     navigate("/agendar/barbeiro")
   }
 
+  const addedTotals = justAdded ? cartTotals([...cart.filter((s) => s.id !== justAdded.id), justAdded]) : totals
+
   return (
-    <div className="min-h-svh">
+    <div className="min-h-svh pb-24">
       <PageHeader backTo="/" backLabel="Início" />
 
       <div className="mx-auto max-w-lg px-6 py-8">
@@ -88,17 +109,83 @@ export function ServiceSelectPage() {
         ) : view === "grid" ? (
           <div className="grid grid-cols-2 gap-3">
             {services.map((service) => (
-              <ServiceGridCard key={service.id} service={service} onSelect={() => handleSelect(service)} />
+              <ServiceGridCard
+                key={service.id}
+                service={service}
+                isSelected={cart.some((s) => s.id === service.id)}
+                onToggle={() => handleToggle(service)}
+              />
             ))}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {services.map((service) => (
-              <ServiceCard key={service.id} service={service} onSelect={() => handleSelect(service)} />
+              <ServiceCard
+                key={service.id}
+                service={service}
+                isSelected={cart.some((s) => s.id === service.id)}
+                onToggle={() => handleToggle(service)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {cart.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm"
+          >
+            <div className="mx-auto flex max-w-lg items-center gap-4 px-6 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {cart.length} {cart.length === 1 ? "serviço" : "serviços"} · {formatDurationShort(totals.durationMinutes)}
+                </p>
+                <p className="text-sm font-semibold text-primary">{formatPriceBRL(totals.priceCents)}</p>
+              </div>
+              <Button size="lg" onClick={handleContinue} className="h-11 shrink-0 px-6 text-sm">
+                Continuar
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Dialog open={addedDialogOpen} onOpenChange={setAddedDialogOpen}>
+        <DialogContent>
+          {justAdded && (
+            <div className="flex flex-col items-center gap-4 py-2 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <CheckCircle2 className="size-6" />
+              </span>
+              <div>
+                <p className="font-semibold text-foreground">{justAdded.name} adicionado</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {cart.length} {cart.length === 1 ? "serviço" : "serviços"} ·{" "}
+                  {formatDurationShort(addedTotals.durationMinutes)} ·{" "}
+                  {formatPriceBRL(addedTotals.priceCents)}
+                </p>
+              </div>
+              <div className="flex w-full flex-col gap-2">
+                <Button onClick={handleContinue} className="h-11 w-full text-sm">
+                  Continuar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setAddedDialogOpen(false)}
+                  className="h-11 w-full text-sm"
+                >
+                  Adicionar outro serviço
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

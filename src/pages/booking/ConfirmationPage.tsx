@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
-import { BOOKING_SESSION_KEY, useBookingFlow } from "@/hooks/useBookingFlow"
+import { BOOKING_SESSION_KEY, cartTotals, useBookingFlow } from "@/hooks/useBookingFlow"
 import { useRepository } from "@/lib/repository/RepositoryContext"
 import { formatPriceBRL } from "@/lib/utils"
 import type { Appointment } from "@/lib/types"
@@ -20,13 +20,13 @@ export function ConfirmationPage() {
 
   useEffect(() => {
     if (isResolving || hasSubmitted.current) return
-    if (!state.service || !state.barber || !state.date || !state.time) return
+    if (state.cart.length === 0 || !state.barber || !state.date || !state.time) return
 
     hasSubmitted.current = true
     repository
       .createAppointment({
         barberId: state.barber.id,
-        serviceId: state.service.id,
+        services: state.cart,
         date: state.date,
         startTime: state.time,
         clientName: state.clientName,
@@ -41,9 +41,11 @@ export function ConfirmationPage() {
       })
   }, [isResolving, repository, state])
 
-  if (!state.service || !state.barber || !state.date || !state.time) {
+  if (state.cart.length === 0 || !state.barber || !state.date || !state.time) {
     if (!appointment) return <Navigate to="/agendar/servico" replace />
   }
+
+  const totals = cartTotals(state.cart)
 
   const displayDate = state.date
     ? format(new Date(`${state.date}T00:00:00`), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
@@ -77,9 +79,14 @@ export function ConfirmationPage() {
             </p>
 
             <div className="mt-6 w-full rounded-xl border border-border bg-card p-5 text-left text-sm">
-              <div className="flex justify-between border-b border-border py-2">
-                <span className="text-muted-foreground">Serviço</span>
-                <span className="font-medium">{state.service?.name}</span>
+              <div className="border-b border-border py-2">
+                <span className="text-xs tracking-wide text-muted-foreground uppercase">Serviços</span>
+                {state.cart.map((s) => (
+                  <div key={s.id} className="mt-1.5 flex justify-between">
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-muted-foreground">{formatPriceBRL(s.priceCents)}</span>
+                  </div>
+                ))}
               </div>
               <div className="flex justify-between border-b border-border py-2">
                 <span className="text-muted-foreground">Profissional</span>
@@ -94,10 +101,8 @@ export function ConfirmationPage() {
                 <span className="font-medium">{appointment.startTime}</span>
               </div>
               <div className="flex justify-between pt-2">
-                <span className="text-muted-foreground">Valor</span>
-                <span className="font-semibold text-primary">
-                  {state.service ? formatPriceBRL(state.service.priceCents) : ""}
-                </span>
+                <span className="text-muted-foreground">Valor total</span>
+                <span className="font-semibold text-primary">{formatPriceBRL(totals.priceCents)}</span>
               </div>
             </div>
 

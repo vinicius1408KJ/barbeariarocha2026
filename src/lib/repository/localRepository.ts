@@ -8,8 +8,18 @@ import type {
   Service,
   TimeSlot,
 } from "@/lib/types"
-import { intervalsOverlap, minutesToTime, normalizePhone, timeToMinutes } from "@/lib/utils"
+import {
+  intervalsOverlap,
+  localDateString,
+  minutesToTime,
+  normalizePhone,
+  timeToMinutes,
+} from "@/lib/utils"
 import type { BookingRepository } from "./types"
+
+// Clients can't book a slot starting less than this many minutes from now —
+// booking right on top of the hour left no travel time, so people showed up late.
+const MIN_BOOKING_NOTICE_MINUTES = 10
 
 const KEYS = {
   services: "br_services",
@@ -57,9 +67,9 @@ class LocalBookingRepository implements BookingRepository {
   async getAvailableSlots(params: {
     barberId: string
     date: string
-    serviceDurationMinutes: number
+    totalDurationMinutes: number
   }): Promise<TimeSlot[]> {
-    const { barberId, date, serviceDurationMinutes } = params
+    const { barberId, date, totalDurationMinutes } = params
     const businessHours = readStore(KEYS.businessHours, SEED_BUSINESS_HOURS)
     const dayOfWeek = new Date(`${date}T00:00:00`).getDay()
     const hours = businessHours.find((h: BusinessHours) => h.dayOfWeek === dayOfWeek)
@@ -86,13 +96,13 @@ class LocalBookingRepository implements BookingRepository {
     const granularity = hours.slotGranularityMinutes
 
     const now = new Date()
-    const isToday = date === now.toISOString().slice(0, 10)
+    const isToday = date === localDateString(now)
     const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
     const slots: TimeSlot[] = []
-    for (let start = openMinutes; start + serviceDurationMinutes <= closeMinutes; start += granularity) {
-      const end = start + serviceDurationMinutes
-      const inPast = isToday && start <= nowMinutes
+    for (let start = openMinutes; start + totalDurationMinutes <= closeMinutes; start += granularity) {
+      const end = start + totalDurationMinutes
+      const inPast = isToday && start <= nowMinutes + MIN_BOOKING_NOTICE_MINUTES
       const overlapsBusy = busyIntervals.some((busy) =>
         intervalsOverlap(start, end, busy.start, busy.end)
       )
@@ -104,22 +114,26 @@ class LocalBookingRepository implements BookingRepository {
 
   async createAppointment(input: {
     barberId: string
-    serviceId: string
+    services: Service[]
     date: string
     startTime: string
     clientName: string
     clientPhone: string
   }): Promise<Appointment> {
-    const services = readStore(KEYS.services, SEED_SERVICES)
-    const service = services.find((s) => s.id === input.serviceId)
-    if (!service) throw new Error("Serviço não encontrado")
+    if (input.services.length === 0) throw new Error("Selecione ao menos um serviço")
 
-    const endTime = minutesToTime(timeToMinutes(input.startTime) + service.durationMinutes)
+    const totalMinutes = input.services.reduce((sum, s) => sum + s.durationMinutes, 0)
+    const endTime = minutesToTime(timeToMinutes(input.startTime) + totalMinutes)
 
     const appointment: Appointment = {
       id: uuid(),
       barberId: input.barberId,
-      serviceId: input.serviceId,
+      services: input.services.map((s) => ({
+        serviceId: s.id,
+        name: s.name,
+        durationMinutes: s.durationMinutes,
+        priceCentsAtBooking: s.priceCents,
+      })),
       clientName: input.clientName,
       clientPhone: normalizePhone(input.clientPhone),
       date: input.date,

@@ -7,11 +7,11 @@ export interface BookingRepository {
   getAvailableSlots(params: {
     barberId: string
     date: string
-    serviceDurationMinutes: number
+    totalDurationMinutes: number
   }): Promise<TimeSlot[]>
   createAppointment(input: {
     barberId: string
-    serviceId: string
+    services: Service[]
     date: string
     startTime: string
     clientName: string

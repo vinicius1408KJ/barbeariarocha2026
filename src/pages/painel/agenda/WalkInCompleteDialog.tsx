@@ -34,7 +34,7 @@ export function WalkInCompleteDialog({
   onOpenChange: (open: boolean) => void
   onDone: () => void
 }) {
-  const [serviceId, setServiceId] = useState<string | null>(null)
+  const [serviceIds, setServiceIds] = useState<string[]>([])
   const [amount, setAmount] = useState("")
   const [payment, setPayment] = useState<PaymentMethod | null>(null)
   const [cardType, setCardType] = useState<CardType | null>(null)
@@ -46,29 +46,28 @@ export function WalkInCompleteDialog({
     adminRepository.getCardFees().then(setFees).catch(() => setFees(ZERO_FEES))
   }, [open])
 
-  // Prefill from the walk-in's chosen service (if any) when opening.
+  // Prefill from the walk-in's chosen services (if any) when opening.
   useEffect(() => {
     if (open) {
-      setServiceId(walkIn?.serviceId ?? null)
+      setServiceIds(walkIn?.serviceIds ?? [])
       setAmount("")
       setPayment(null)
       setCardType(null)
     }
-  }, [open, walkIn?.id, walkIn?.serviceId])
+  }, [open, walkIn?.id, walkIn?.serviceIds])
 
   if (!walkIn) return null
 
-  const service = services.find((s) => s.id === serviceId)
-  const grossCents = amount
-    ? Math.round(parseFloat(amount.replace(",", ".")) * 100) || 0
-    : (service?.priceCents ?? 0)
+  const selectedServices = services.filter((s) => serviceIds.includes(s.id))
+  const defaultCents = selectedServices.reduce((sum, s) => sum + s.priceCents, 0)
+  const grossCents = amount ? Math.round(parseFloat(amount.replace(",", ".")) * 100) || 0 : defaultCents
   const feeCents = payment === "cartao" && cardType ? cardFeeCents(fees, cardType, grossCents) : 0
   const netCents = grossCents - feeCents
 
   async function submit() {
     if (!walkIn) return
-    if (!serviceId) {
-      toast.error("Selecione o serviço.")
+    if (serviceIds.length === 0) {
+      toast.error("Selecione ao menos um serviço.")
       return
     }
     if (!payment) {
@@ -83,7 +82,7 @@ export function WalkInCompleteDialog({
     try {
       await adminRepository.completeWalkIn({
         walkInId: walkIn.id,
-        serviceId,
+        serviceIds,
         amountCents: grossCents,
         paymentMethod: payment,
         cardType: payment === "cartao" ? cardType : null,
@@ -109,16 +108,20 @@ export function WalkInCompleteDialog({
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label>Serviço</Label>
+            <Label>Serviços</Label>
             <div className="grid grid-cols-2 gap-2">
               {services.map((s) => (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setServiceId(s.id)}
+                  onClick={() =>
+                    setServiceIds((prev) =>
+                      prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                    )
+                  }
                   className={
                     "h-9 rounded-lg border px-2 text-xs font-medium transition-colors " +
-                    (serviceId === s.id
+                    (serviceIds.includes(s.id)
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background text-foreground hover:border-primary/50")
                   }
@@ -134,7 +137,7 @@ export function WalkInCompleteDialog({
             <Input
               id="wi-amount"
               inputMode="decimal"
-              placeholder={service ? formatPriceBRL(service.priceCents) : "0,00"}
+              placeholder={formatPriceBRL(defaultCents)}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />

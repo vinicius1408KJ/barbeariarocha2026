@@ -30,7 +30,7 @@ const STEP_ORDER = [
 function requiredStateForStep(path: string, state: BookingState): boolean {
   const index = STEP_ORDER.indexOf(path)
   if (index <= 0) return true
-  if (index >= 1 && !state.service) return false
+  if (index >= 1 && state.cart.length === 0) return false
   if (index >= 2 && !state.barber) return false
   if (index >= 3 && (!state.date || !state.time)) return false
   return true
@@ -46,7 +46,7 @@ export function BookingLayout() {
   }, [state])
 
   if (!requiredStateForStep(location.pathname, state)) {
-    if (!state.service) return <Navigate to="/agendar/servico" replace />
+    if (state.cart.length === 0) return <Navigate to="/agendar/servico" replace />
     if (!state.barber) return <Navigate to="/agendar/barbeiro" replace />
     return <Navigate to="/agendar/horario" replace />
   }

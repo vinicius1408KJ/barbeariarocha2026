@@ -148,7 +148,9 @@ export function AgendaPage() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">{w.clientName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {w.serviceId ? serviceOf(w.serviceId)?.name : "Sem serviço definido"}
+                    {w.serviceIds.length > 0
+                      ? w.serviceIds.map((id) => serviceOf(id)?.name).filter(Boolean).join(" + ")
+                      : "Sem serviço definido"}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -212,39 +214,36 @@ export function AgendaPage() {
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {appointments.map((a) => {
-            const service = serviceOf(a.serviceId)
-            return (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => {
-                  setSelected(a)
-                  setDetailOpen(true)
-                }}
-                className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-accent"
+          {appointments.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => {
+                setSelected(a)
+                setDetailOpen(true)
+              }}
+              className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-accent"
+            >
+              <span className="w-12 shrink-0 text-sm font-semibold text-foreground">
+                {a.startTime}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{a.clientName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {a.services.map((s) => s.name).join(" + ")}
+                  {a.isWalkIn && " · Walk-in"}
+                </p>
+              </div>
+              <span
+                className={
+                  "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
+                  STATUS_PILL[a.status]
+                }
               >
-                <span className="w-12 shrink-0 text-sm font-semibold text-foreground">
-                  {a.startTime}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{a.clientName}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {service?.name}
-                    {a.isWalkIn && " · Walk-in"}
-                  </p>
-                </div>
-                <span
-                  className={
-                    "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold " +
-                    STATUS_PILL[a.status]
-                  }
-                >
-                  {STATUS_LABEL[a.status]}
-                </span>
-              </button>
-            )
-          })}
+                {STATUS_LABEL[a.status]}
+              </span>
+            </button>
+          ))}
 
           {blocks.map((b) => (
             <div
@@ -275,7 +274,6 @@ export function AgendaPage() {
 
       <AppointmentDetailDialog
         appointment={selected}
-        service={selected ? serviceOf(selected.serviceId) : undefined}
         barberName={session!.barberName}
         open={detailOpen}
         onOpenChange={setDetailOpen}

@@ -106,13 +106,13 @@ export interface AdminRepository {
   createWalkIn(input: {
     clientName: string
     clientPhone: string | null
-    serviceId: string | null
+    serviceIds: string[]
     barberId: string
   }): Promise<WalkInEntry>
   updateWalkInStatus(id: string, status: WalkInEntry["status"]): Promise<void>
   completeWalkIn(input: {
     walkInId: string
-    serviceId: string
+    serviceIds: string[]
     amountCents: number
     paymentMethod: PaymentMethod
     cardType?: CardType | null

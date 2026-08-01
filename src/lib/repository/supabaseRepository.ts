@@ -1,7 +1,17 @@
 import { supabase } from "@/lib/supabaseClient"
-import type { Appointment, Barber, Review, Service, TimeSlot } from "@/lib/types"
-import { intervalsOverlap, minutesToTime, normalizePhone, timeToMinutes } from "@/lib/utils"
+import type { Appointment, AppointmentService, Barber, Review, Service, TimeSlot } from "@/lib/types"
+import {
+  intervalsOverlap,
+  localDateString,
+  minutesToTime,
+  normalizePhone,
+  timeToMinutes,
+} from "@/lib/utils"
 import type { BookingRepository } from "./types"
+
+// Clients can't book a slot starting less than this many minutes from now —
+// booking right on top of the hour left no travel time, so people showed up late.
+const MIN_BOOKING_NOTICE_MINUTES = 10
 
 type ServiceRow = {
   id: string
@@ -20,10 +30,16 @@ type BarberRow = {
   active: boolean
 }
 
+type AppointmentServiceRow = {
+  service_id: string
+  name: string
+  duration_minutes: number
+  price_cents_at_booking: number
+}
+
 type AppointmentRow = {
   id: string
   barber_id: string
-  service_id: string
   client_name: string
   client_phone: string
   date: string
@@ -36,6 +52,9 @@ type AppointmentRow = {
   payment_method: Appointment["paymentMethod"]
   completed_at: string | null
   created_at: string
+  // Present only on RPC responses that embed the joined line items
+  // (create_public_appointment, get_appointments_by_phone) — see mapAppointment.
+  services?: AppointmentServiceRow[]
 }
 
 type ReviewRow = {
@@ -79,11 +98,18 @@ function mapBarber(row: BarberRow): Barber {
   }
 }
 
-function mapAppointment(row: AppointmentRow): Appointment {
+function mapAppointment(row: AppointmentRow, services: AppointmentService[] = []): Appointment {
   return {
     id: row.id,
     barberId: row.barber_id,
-    serviceId: row.service_id,
+    services: row.services
+      ? row.services.map((s) => ({
+          serviceId: s.service_id,
+          name: s.name,
+          durationMinutes: s.duration_minutes,
+          priceCentsAtBooking: s.price_cents_at_booking,
+        }))
+      : services,
     clientName: row.client_name,
     clientPhone: row.client_phone,
     date: row.date,
@@ -127,9 +153,9 @@ class SupabaseBookingRepository implements BookingRepository {
   async getAvailableSlots(params: {
     barberId: string
     date: string
-    serviceDurationMinutes: number
+    totalDurationMinutes: number
   }): Promise<TimeSlot[]> {
-    const { barberId, date, serviceDurationMinutes } = params
+    const { barberId, date, totalDurationMinutes } = params
     const dayOfWeek = new Date(`${date}T00:00:00`).getDay()
 
     const { data: hoursRows, error: hoursError } = await this.client
@@ -182,13 +208,13 @@ class SupabaseBookingRepository implements BookingRepository {
     const granularity = hours.slot_granularity_minutes
 
     const now = new Date()
-    const isToday = date === now.toISOString().slice(0, 10)
+    const isToday = date === localDateString(now)
     const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
     const slots: TimeSlot[] = []
-    for (let start = openMinutes; start + serviceDurationMinutes <= closeMinutes; start += granularity) {
-      const end = start + serviceDurationMinutes
-      const inPast = isToday && start <= nowMinutes
+    for (let start = openMinutes; start + totalDurationMinutes <= closeMinutes; start += granularity) {
+      const end = start + totalDurationMinutes
+      const inPast = isToday && start <= nowMinutes + MIN_BOOKING_NOTICE_MINUTES
       const overlapsBusy = busyIntervals.some((busy) =>
         intervalsOverlap(start, end, busy.start, busy.end)
       )
@@ -200,7 +226,7 @@ class SupabaseBookingRepository implements BookingRepository {
 
   async createAppointment(input: {
     barberId: string
-    serviceId: string
+    services: Service[]
     date: string
     startTime: string
     clientName: string
@@ -213,7 +239,7 @@ class SupabaseBookingRepository implements BookingRepository {
     // request. This RPC inserts and returns just the one row it created.
     const { data, error } = await this.client.rpc("create_public_appointment", {
       p_barber_id: input.barberId,
-      p_service_id: input.serviceId,
+      p_service_ids: input.services.map((s) => s.id),
       p_date: input.date,
       p_start_time: input.startTime,
       p_client_name: input.clientName,
@@ -221,18 +247,27 @@ class SupabaseBookingRepository implements BookingRepository {
     })
     if (error) throw error
 
-    return mapAppointment(data as AppointmentRow)
+    // The RPC returns only the bare appointments row (no nested services) —
+    // build the line items from the cart already in hand, no extra round trip.
+    const services: AppointmentService[] = input.services.map((s) => ({
+      serviceId: s.id,
+      name: s.name,
+      durationMinutes: s.durationMinutes,
+      priceCentsAtBooking: s.priceCents,
+    }))
+    return mapAppointment(data as AppointmentRow, services)
   }
 
   async getAppointmentsByPhone(phone: string): Promise<Appointment[]> {
     // Scoped RPC (not a table SELECT): returns only this phone's own
-    // appointments, so no other client's name/phone can ever leak.
+    // appointments, so no other client's name/phone can ever leak. Each row
+    // embeds its own services as a joined jsonb column server-side.
     const { data, error } = await this.client.rpc("get_appointments_by_phone", {
       p_phone: normalizePhone(phone),
     })
     if (error) throw error
     return (data as AppointmentRow[])
-      .map(mapAppointment)
+      .map((row) => mapAppointment(row))
       .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
   }
 
