@@ -88,6 +88,14 @@ export interface AdminRepository {
     cardType?: CardType | null,
     feeCents?: number
   ): Promise<void>
+  createManualAppointment(input: {
+    barberId: string
+    services: Service[]
+    date: string
+    startTime: string
+    clientName: string
+    clientPhone: string | null
+  }): Promise<Appointment>
 
   // Time blocking
   listBlockedSlots(barberId: string, date: string): Promise<BlockedSlot[]>

@@ -416,6 +416,26 @@ class SupabaseAdminRepository implements AdminRepository {
     if (error) throw error
   }
 
+  async createManualAppointment(input: {
+    barberId: string
+    services: Service[]
+    date: string
+    startTime: string
+    clientName: string
+    clientPhone: string | null
+  }): Promise<Appointment> {
+    const { data, error } = await this.client.rpc("create_manual_appointment", {
+      p_barber_id: input.barberId,
+      p_service_ids: input.services.map((s) => s.id),
+      p_date: input.date,
+      p_start_time: input.startTime,
+      p_client_name: input.clientName,
+      p_client_phone: input.clientPhone ? normalizePhone(input.clientPhone) : null,
+    })
+    if (error) throw error
+    return mapAppointment(data as AppointmentRow)
+  }
+
   // ── Client history + reviews ───────────────────────────────────
 
   async getClientHistory(phone: string): Promise<ClientHistory> {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { addDays, format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Lock, Plus, Users } from "lucide-react"
+import { CalendarPlus, ChevronLeft, ChevronRight, Lock, Plus, Users } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { adminRepository } from "@/lib/repository/adminRepository"
@@ -14,6 +14,7 @@ import { AppointmentDetailDialog } from "./AppointmentDetailDialog"
 import { WalkInDialog } from "./WalkInDialog"
 import { WalkInCompleteDialog } from "./WalkInCompleteDialog"
 import { BlockTimeDialog } from "./BlockTimeDialog"
+import { ManualAppointmentDialog } from "./ManualAppointmentDialog"
 
 function todayISO(): string {
   return format(new Date(), "yyyy-MM-dd")
@@ -33,6 +34,7 @@ export function AgendaPage() {
   const [selected, setSelected] = useState<Appointment | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
+  const [manualOpen, setManualOpen] = useState(false)
   const [blockOpen, setBlockOpen] = useState(false)
   const [completeWalkIn, setCompleteWalkIn] = useState<WalkInEntry | null>(null)
   const [completeWalkInOpen, setCompleteWalkInOpen] = useState(false)
@@ -121,10 +123,14 @@ export function AgendaPage() {
       </div>
 
       {/* Actions */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-3 gap-2">
         <Button variant="outline" onClick={() => setWalkInOpen(true)} className="h-10">
           <Plus className="size-4" />
           Walk-in
+        </Button>
+        <Button variant="outline" onClick={() => setManualOpen(true)} className="h-10">
+          <CalendarPlus className="size-4" />
+          Agendar
         </Button>
         <Button variant="outline" onClick={() => setBlockOpen(true)} className="h-10">
           <Lock className="size-4" />
@@ -299,6 +305,14 @@ export function AgendaPage() {
         open={blockOpen}
         onOpenChange={setBlockOpen}
         onBlocked={load}
+      />
+      <ManualAppointmentDialog
+        barberId={barberId}
+        services={services}
+        date={date}
+        open={manualOpen}
+        onOpenChange={setManualOpen}
+        onCreated={load}
       />
     </div>
   )
