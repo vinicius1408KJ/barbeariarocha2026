@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useBookingFlow } from "@/hooks/useBookingFlow"
+import { REMEMBERED_CLIENT_KEY, useBookingFlow } from "@/hooks/useBookingFlow"
 import { normalizePhone } from "@/lib/utils"
 
 const contactSchema = z.object({
@@ -34,6 +34,10 @@ export function ContactInfoPage() {
 
   function onSubmit(values: ContactFormValues) {
     dispatch({ type: "SET_CONTACT", name: values.name, phone: values.phone })
+    localStorage.setItem(
+      REMEMBERED_CLIENT_KEY,
+      JSON.stringify({ name: values.name, phone: values.phone })
+    )
     navigate("/agendar/confirmado")
   }
 

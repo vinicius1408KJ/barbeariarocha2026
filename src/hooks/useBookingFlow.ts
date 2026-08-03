@@ -61,6 +61,7 @@ export function cartTotals(cart: Service[]): { durationMinutes: number; priceCen
 }
 
 export const BOOKING_SESSION_KEY = "br_booking_session"
+export const REMEMBERED_CLIENT_KEY = "br_remembered_client"
 
 type BookingContextValue = {
   state: BookingState

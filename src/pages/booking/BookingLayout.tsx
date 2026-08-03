@@ -6,17 +6,31 @@ import {
   BookingContext,
   bookingReducer,
   initialBookingState,
+  REMEMBERED_CLIENT_KEY,
   type BookingState,
 } from "@/hooks/useBookingFlow"
 
+// Remembered client name/phone (localStorage, persists across visits on this
+// device) only fills in when there's no active in-progress session — so
+// resuming a half-finished booking never gets its contact step silently
+// overwritten by an older remembered value.
 function loadInitialState(): BookingState {
   try {
     const raw = sessionStorage.getItem(BOOKING_SESSION_KEY)
-    if (!raw) return initialBookingState
-    return { ...initialBookingState, ...JSON.parse(raw) }
+    if (raw) return { ...initialBookingState, ...JSON.parse(raw) }
   } catch {
-    return initialBookingState
+    // fall through to remembered/default state
   }
+  try {
+    const remembered = localStorage.getItem(REMEMBERED_CLIENT_KEY)
+    if (remembered) {
+      const { name, phone } = JSON.parse(remembered)
+      return { ...initialBookingState, clientName: name ?? "", clientPhone: phone ?? "" }
+    }
+  } catch {
+    // ignore, use defaults
+  }
+  return initialBookingState
 }
 
 const STEP_ORDER = [
