@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { CheckCircle2, MessageCircle, X } from "lucide-react"
+import { CheckCircle2, Clock, MessageCircle, X } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -66,6 +66,9 @@ export function AppointmentDetailDialog({
   const [history, setHistory] = useState<ClientHistory | null>(null)
   const [review, setReview] = useState<Review | null>(null)
   const [busy, setBusy] = useState(false)
+  const [editingTime, setEditingTime] = useState(false)
+  const [newStartTime, setNewStartTime] = useState("")
+  const [timeBusy, setTimeBusy] = useState(false)
 
   // Load configured card fees once when the dialog opens.
   useEffect(() => {
@@ -94,6 +97,7 @@ export function AppointmentDetailDialog({
       setAmount("")
       setPayment(null)
       setCardType(null)
+      setEditingTime(false)
     }
   }, [open, appointment?.id])
 
@@ -121,6 +125,21 @@ export function AppointmentDetailDialog({
       toast.error("Não foi possível atualizar o status.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function saveTime() {
+    if (!appointment || !newStartTime) return
+    setTimeBusy(true)
+    try {
+      await adminRepository.updateAppointmentTime(appointment.id, newStartTime)
+      toast.success("Horário atualizado.")
+      onChanged()
+      setEditingTime(false)
+    } catch {
+      toast.error("Não foi possível atualizar o horário. Pode já estar ocupado.")
+    } finally {
+      setTimeBusy(false)
     }
   }
 
@@ -168,6 +187,50 @@ export function AppointmentDetailDialog({
             {appointment.isWalkIn && " · Walk-in"}
           </DialogDescription>
         </DialogHeader>
+
+        {appointment.status !== "completed" &&
+          appointment.status !== "cancelled" &&
+          appointment.status !== "no_show" && (
+            <div className="flex flex-col gap-2">
+              {editingTime ? (
+                <div className="flex items-end gap-2">
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Label htmlFor="edit-time">Novo horário</Label>
+                    <Input
+                      id="edit-time"
+                      type="time"
+                      value={newStartTime}
+                      onChange={(e) => setNewStartTime(e.target.value)}
+                    />
+                  </div>
+                  <Button disabled={timeBusy} onClick={saveTime} className="h-9">
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={timeBusy}
+                    onClick={() => setEditingTime(false)}
+                    className="h-9"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => {
+                    setNewStartTime(appointment.startTime)
+                    setEditingTime(true)
+                  }}
+                >
+                  <Clock className="size-3.5" />
+                  Editar horário
+                </Button>
+              )}
+            </div>
+          )}
 
         {/* Client history */}
         {history && history.visits > 0 && (

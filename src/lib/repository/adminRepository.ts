@@ -436,6 +436,14 @@ class SupabaseAdminRepository implements AdminRepository {
     return mapAppointment(data as AppointmentRow)
   }
 
+  async updateAppointmentTime(appointmentId: string, startTime: string): Promise<void> {
+    const { error } = await this.client.rpc("update_appointment_time", {
+      p_appointment_id: appointmentId,
+      p_start_time: startTime,
+    })
+    if (error) throw error
+  }
+
   // ── Client history + reviews ───────────────────────────────────
 
   async getClientHistory(phone: string): Promise<ClientHistory> {

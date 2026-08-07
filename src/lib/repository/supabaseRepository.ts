@@ -9,10 +9,6 @@ import {
 } from "@/lib/utils"
 import type { BookingRepository } from "./types"
 
-// Clients can't book a slot starting less than this many minutes from now —
-// booking right on top of the hour left no travel time, so people showed up late.
-const MIN_BOOKING_NOTICE_MINUTES = 10
-
 type ServiceRow = {
   id: string
   name: string
@@ -214,7 +210,7 @@ class SupabaseBookingRepository implements BookingRepository {
     const slots: TimeSlot[] = []
     for (let start = openMinutes; start + totalDurationMinutes <= closeMinutes; start += granularity) {
       const end = start + totalDurationMinutes
-      const inPast = isToday && start <= nowMinutes + MIN_BOOKING_NOTICE_MINUTES
+      const inPast = isToday && start <= nowMinutes
       const overlapsBusy = busyIntervals.some((busy) =>
         intervalsOverlap(start, end, busy.start, busy.end)
       )

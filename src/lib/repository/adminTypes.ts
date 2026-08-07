@@ -96,6 +96,7 @@ export interface AdminRepository {
     clientName: string
     clientPhone: string | null
   }): Promise<Appointment>
+  updateAppointmentTime(appointmentId: string, startTime: string): Promise<void>
 
   // Time blocking
   listBlockedSlots(barberId: string, date: string): Promise<BlockedSlot[]>

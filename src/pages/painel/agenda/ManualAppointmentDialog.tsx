@@ -28,6 +28,8 @@ export function ManualAppointmentDialog({
   const [phone, setPhone] = useState("")
   const [serviceIds, setServiceIds] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [outsideHours, setOutsideHours] = useState(false)
+  const [customTime, setCustomTime] = useState("")
   const [busy, setBusy] = useState(false)
 
   const selectedServices = services.filter((s) => serviceIds.includes(s.id))
@@ -49,9 +51,12 @@ export function ManualAppointmentDialog({
     setPhone("")
     setServiceIds([])
     setSelectedTime(null)
+    setOutsideHours(false)
+    setCustomTime("")
   }
 
   async function submit() {
+    const time = outsideHours ? customTime : selectedTime
     if (name.trim().length < 2) {
       toast.error("Informe o nome do cliente.")
       return
@@ -60,7 +65,7 @@ export function ManualAppointmentDialog({
       toast.error("Selecione ao menos um serviço.")
       return
     }
-    if (!selectedTime) {
+    if (!time) {
       toast.error("Selecione um horário.")
       return
     }
@@ -70,7 +75,7 @@ export function ManualAppointmentDialog({
         barberId,
         services: selectedServices,
         date,
-        startTime: selectedTime,
+        startTime: time,
         clientName: name.trim(),
         clientPhone: phone.trim() || null,
       })
@@ -129,8 +134,30 @@ export function ManualAppointmentDialog({
 
           {serviceIds.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <Label>Horário — {date.split("-").reverse().join("/")}</Label>
-              <TimeSlotGrid slots={slots} selectedTime={selectedTime} onSelect={setSelectedTime} isLoading={isLoading} />
+              <div className="flex items-center justify-between">
+                <Label>Horário — {date.split("-").reverse().join("/")}</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutsideHours((prev) => !prev)
+                    setSelectedTime(null)
+                    setCustomTime("")
+                  }}
+                  className="text-xs font-semibold tracking-wide text-primary uppercase hover:text-primary/80"
+                >
+                  {outsideHours ? "Usar horário do dia" : "Fora do expediente"}
+                </button>
+              </div>
+
+              {outsideHours ? (
+                <Input
+                  type="time"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                />
+              ) : (
+                <TimeSlotGrid slots={slots} selectedTime={selectedTime} onSelect={setSelectedTime} isLoading={isLoading} />
+              )}
             </div>
           )}
 
