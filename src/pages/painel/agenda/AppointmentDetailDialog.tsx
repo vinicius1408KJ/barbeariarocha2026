@@ -68,6 +68,7 @@ export function AppointmentDetailDialog({
   const [busy, setBusy] = useState(false)
   const [editingTime, setEditingTime] = useState(false)
   const [newStartTime, setNewStartTime] = useState("")
+  const [newEndTime, setNewEndTime] = useState("")
   const [timeBusy, setTimeBusy] = useState(false)
 
   // Load configured card fees once when the dialog opens.
@@ -129,10 +130,14 @@ export function AppointmentDetailDialog({
   }
 
   async function saveTime() {
-    if (!appointment || !newStartTime) return
+    if (!appointment || !newStartTime || !newEndTime) return
+    if (newEndTime <= newStartTime) {
+      toast.error("O horário final deve ser após o inicial.")
+      return
+    }
     setTimeBusy(true)
     try {
-      await adminRepository.updateAppointmentTime(appointment.id, newStartTime)
+      await adminRepository.updateAppointmentTime(appointment.id, newStartTime, newEndTime)
       toast.success("Horário atualizado.")
       onChanged()
       setEditingTime(false)
@@ -193,27 +198,40 @@ export function AppointmentDetailDialog({
           appointment.status !== "no_show" && (
             <div className="flex flex-col gap-2">
               {editingTime ? (
-                <div className="flex items-end gap-2">
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <Label htmlFor="edit-time">Novo horário</Label>
-                    <Input
-                      id="edit-time"
-                      type="time"
-                      value={newStartTime}
-                      onChange={(e) => setNewStartTime(e.target.value)}
-                    />
+                <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="edit-start">Início</Label>
+                      <Input
+                        id="edit-start"
+                        type="time"
+                        value={newStartTime}
+                        onChange={(e) => setNewStartTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="edit-end">Fim</Label>
+                      <Input
+                        id="edit-end"
+                        type="time"
+                        value={newEndTime}
+                        onChange={(e) => setNewEndTime(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <Button disabled={timeBusy} onClick={saveTime} className="h-9">
-                    Salvar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={timeBusy}
-                    onClick={() => setEditingTime(false)}
-                    className="h-9"
-                  >
-                    Cancelar
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button disabled={timeBusy} onClick={saveTime} className="h-9 flex-1">
+                      Salvar horário
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={timeBusy}
+                      onClick={() => setEditingTime(false)}
+                      className="h-9"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <Button
@@ -222,6 +240,7 @@ export function AppointmentDetailDialog({
                   className="self-start"
                   onClick={() => {
                     setNewStartTime(appointment.startTime)
+                    setNewEndTime(appointment.endTime)
                     setEditingTime(true)
                   }}
                 >
