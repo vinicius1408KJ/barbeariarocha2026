@@ -173,8 +173,11 @@ class SupabaseBookingRepository implements BookingRepository {
       .eq("date", date)
     if (apptError) throw apptError
 
+    // Public-safe view: only timing, no "reason" — and readable by anon, unlike
+    // the blocked_slots table itself, which is staff-only. Without this the
+    // client site couldn't see manual blocks and let people book over them.
     const { data: blockedRows, error: blockedError } = await this.client
-      .from("blocked_slots")
+      .from("blocked_slots_public")
       .select("start_time, end_time")
       .eq("barber_id", barberId)
       .eq("date", date)
