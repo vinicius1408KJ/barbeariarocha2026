@@ -4,6 +4,7 @@ import { addDays, format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AnimatePresence, motion } from "framer-motion"
 import { CalendarOff, ChevronLeft, ChevronRight, Scissors } from "lucide-react"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { TimeSlotGrid } from "@/components/booking/TimeSlotGrid"
 import { Button } from "@/components/ui/button"
@@ -52,6 +53,20 @@ export function DateTimeSelectPage() {
     date,
     totalDurationMinutes: totals.durationMinutes || null,
   })
+
+  // The slot list refreshes in the background (someone else may book the
+  // selected time while this client is still deciding) — if the previously
+  // picked time drops out of the refreshed list, clear it instead of letting
+  // the client "confirm" a slot that's already gone.
+  useEffect(() => {
+    if (!selectedTime || isLoading) return
+    const stillAvailable = slots.some((s) => s.time === selectedTime && s.available)
+    if (!stillAvailable) {
+      setSelectedTime(null)
+      toast.error("Esse horário acabou de ser ocupado. Escolha outro.")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots])
 
   function handleDateChange(value: string) {
     if (value < todayISO()) return
