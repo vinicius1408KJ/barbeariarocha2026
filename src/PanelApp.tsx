@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { RepositoryProvider } from "@/lib/repository/RepositoryContext"
+import { useAutoUpdate } from "@/hooks/useAutoUpdate"
 import { PanelLoading } from "@/components/layout/PanelLoading"
 import { PainelLayout } from "@/pages/painel/PainelLayout"
 import { PainelGuard } from "@/pages/painel/PainelGuard"
@@ -37,6 +38,8 @@ const ConfiguracoesPage = lazy(() =>
 // (barbeariarocha2026adm.vercel.app). The booking site is a separate Vercel
 // project/deployment (see App.tsx) so clients never see or reach this one.
 function PanelApp() {
+  useAutoUpdate()
+
   return (
     <RepositoryProvider>
       <BrowserRouter>
