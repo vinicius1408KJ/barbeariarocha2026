@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { BOOKING_SESSION_KEY, cartTotals, useBookingFlow } from "@/hooks/useBookingFlow"
 import { useRepository } from "@/lib/repository/RepositoryContext"
+import { logBookingFailure } from "@/lib/bookingFailureLog"
 import { formatPriceBRL } from "@/lib/utils"
 import type { Appointment } from "@/lib/types"
 
@@ -22,6 +23,16 @@ export function ConfirmationPage() {
     if (isResolving || hasSubmitted.current) return
     if (isUnavailable) {
       setError("Sem conexão com o servidor. Verifique sua internet e tente novamente.")
+      // This is the case that used to vanish without a trace — the client
+      // gave up and nobody at the shop ever knew they tried.
+      logBookingFailure({
+        barberId: state.barber?.id,
+        date: state.date,
+        startTime: state.time,
+        clientName: state.clientName,
+        clientPhone: state.clientPhone,
+        error: "Sem conexão com o servidor ao confirmar",
+      })
       return
     }
     if (state.cart.length === 0 || !state.barber || !state.date || !state.time) return
@@ -46,6 +57,14 @@ export function ConfirmationPage() {
         hasSubmitted.current = false
         setError(err instanceof Error ? err.message : "Erro ao criar agendamento")
         toast.error("Não foi possível concluir o agendamento. Tente novamente.")
+        logBookingFailure({
+          barberId: state.barber?.id,
+          date: state.date,
+          startTime: state.time,
+          clientName: state.clientName,
+          clientPhone: state.clientPhone,
+          error: err,
+        })
       })
   }, [isResolving, isUnavailable, repository, state])
 
