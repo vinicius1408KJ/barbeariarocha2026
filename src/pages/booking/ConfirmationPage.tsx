@@ -13,13 +13,17 @@ import type { Appointment } from "@/lib/types"
 
 export function ConfirmationPage() {
   const { state } = useBookingFlow()
-  const { repository, isResolving } = useRepository()
+  const { repository, isResolving, isUnavailable } = useRepository()
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [error, setError] = useState<string | null>(null)
   const hasSubmitted = useRef(false)
 
   useEffect(() => {
     if (isResolving || hasSubmitted.current) return
+    if (isUnavailable) {
+      setError("Sem conexão com o servidor. Verifique sua internet e tente novamente.")
+      return
+    }
     if (state.cart.length === 0 || !state.barber || !state.date || !state.time) return
 
     hasSubmitted.current = true
@@ -36,10 +40,14 @@ export function ConfirmationPage() {
         setAppointment(created)
       })
       .catch((err) => {
+        // Let the client retry: without this the ref stays true and the
+        // "Tentar novamente" button would navigate back to a page that
+        // never re-submits.
+        hasSubmitted.current = false
         setError(err instanceof Error ? err.message : "Erro ao criar agendamento")
         toast.error("Não foi possível concluir o agendamento. Tente novamente.")
       })
-  }, [isResolving, repository, state])
+  }, [isResolving, isUnavailable, repository, state])
 
   if (state.cart.length === 0 || !state.barber || !state.date || !state.time) {
     if (!appointment) return <Navigate to="/agendar/servico" replace />

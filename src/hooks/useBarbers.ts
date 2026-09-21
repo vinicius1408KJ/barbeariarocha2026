@@ -11,12 +11,17 @@ export function useBarbers() {
     if (isResolving) return
     let cancelled = false
     setIsLoading(true)
-    repository.listBarbers().then((data) => {
-      if (!cancelled) {
-        setBarbers(data)
-        setIsLoading(false)
-      }
-    })
+    repository
+      .listBarbers()
+      .then((data) => {
+        if (!cancelled) setBarbers(data)
+      })
+      .catch(() => {
+        if (!cancelled) setBarbers([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
     return () => {
       cancelled = true
     }

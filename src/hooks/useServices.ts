@@ -11,12 +11,17 @@ export function useServices() {
     if (isResolving) return
     let cancelled = false
     setIsLoading(true)
-    repository.listServices().then((data) => {
-      if (!cancelled) {
-        setServices(data)
-        setIsLoading(false)
-      }
-    })
+    repository
+      .listServices()
+      .then((data) => {
+        if (!cancelled) setServices(data)
+      })
+      .catch(() => {
+        if (!cancelled) setServices([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
     return () => {
       cancelled = true
     }

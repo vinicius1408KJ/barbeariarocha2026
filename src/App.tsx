@@ -1,7 +1,8 @@
 import { lazy, Suspense } from "react"
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
+import { WifiOff } from "lucide-react"
 import { Toaster } from "@/components/ui/sonner"
-import { RepositoryProvider } from "@/lib/repository/RepositoryContext"
+import { RepositoryProvider, useRepository } from "@/lib/repository/RepositoryContext"
 import { useAutoUpdate } from "@/hooks/useAutoUpdate"
 import { HomePage } from "@/pages/HomePage"
 import { MeusHorariosPage } from "@/pages/MeusHorariosPage"
@@ -22,6 +23,21 @@ const NotFoundPage = lazy(() =>
 // the flow with fresh code instead of losing anything.
 function isUnsafeRoute(pathname: string): boolean {
   return pathname === "/agendar/contato" || pathname === "/agendar/confirmado"
+}
+
+// Without this the screens would just look empty (no services, no slots)
+// and the client would assume the shop has nothing available, instead of
+// understanding it's their connection.
+function OfflineBanner() {
+  const { isUnavailable, isResolving } = useRepository()
+  if (isResolving || !isUnavailable) return null
+
+  return (
+    <div className="flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-center text-xs font-medium text-destructive-foreground">
+      <WifiOff className="size-3.5 shrink-0" />
+      Sem conexão com o servidor. Recarregue a página para tentar de novo.
+    </div>
+  )
 }
 
 function AppRoutes() {
@@ -52,6 +68,7 @@ function App() {
   return (
     <RepositoryProvider>
       <BrowserRouter>
+        <OfflineBanner />
         <AppRoutes />
         <Toaster theme="dark" />
       </BrowserRouter>

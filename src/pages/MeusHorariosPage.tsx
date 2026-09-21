@@ -28,12 +28,17 @@ export function MeusHorariosPage() {
     e.preventDefault()
     if (!phone.trim()) return
     setIsLoading(true)
-    const result = await repository.getAppointmentsByPhone(phone)
-    setAppointments(result)
-    setSearchedPhone(phone)
-    const reviews = await repository.getReviews(result.map((a) => a.id), phone)
-    setRatings(Object.fromEntries(reviews.map((r) => [r.appointmentId, r.rating])))
-    setIsLoading(false)
+    try {
+      const result = await repository.getAppointmentsByPhone(phone)
+      setAppointments(result)
+      setSearchedPhone(phone)
+      const reviews = await repository.getReviews(result.map((a) => a.id), phone)
+      setRatings(Object.fromEntries(reviews.map((r) => [r.appointmentId, r.rating])))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível buscar seus horários.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   async function handleCancel(id: string) {

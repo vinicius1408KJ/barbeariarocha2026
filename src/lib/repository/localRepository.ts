@@ -26,13 +26,15 @@ const KEYS = {
   reviews: "br_reviews",
 } as const
 
+// Safari in private mode (and a browser with site data blocked) throws on
+// localStorage access rather than returning null, so every call is guarded.
 function readStore<T>(key: string, fallback: T): T {
-  const raw = localStorage.getItem(key)
-  if (!raw) {
-    localStorage.setItem(key, JSON.stringify(fallback))
-    return fallback
-  }
   try {
+    const raw = localStorage.getItem(key)
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(fallback))
+      return fallback
+    }
     return JSON.parse(raw) as T
   } catch {
     return fallback
@@ -40,7 +42,11 @@ function readStore<T>(key: string, fallback: T): T {
 }
 
 function writeStore<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value))
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // storage unavailable/full — dev-only repository, nothing to recover
+  }
 }
 
 function uuid(): string {

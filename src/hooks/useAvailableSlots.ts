@@ -30,10 +30,15 @@ export function useAvailableSlots(params: {
       repository
         .getAvailableSlots({ barberId: barberId!, date: date!, totalDurationMinutes: totalDurationMinutes! })
         .then((data) => {
-          if (!cancelled) {
-            setSlots(data)
-            setIsLoading(false)
-          }
+          if (!cancelled) setSlots(data)
+        })
+        .catch(() => {
+          // Offer nothing rather than a stale/fictional list when the
+          // database is unreachable.
+          if (!cancelled) setSlots([])
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false)
         })
     }
 

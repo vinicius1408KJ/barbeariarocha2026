@@ -8,9 +8,14 @@ export function useOpenWeekdays() {
   useEffect(() => {
     if (isResolving) return
     let cancelled = false
-    repository.getOpenWeekdays().then((days) => {
-      if (!cancelled) setOpenWeekdays(days)
-    })
+    repository
+      .getOpenWeekdays()
+      .then((days) => {
+        if (!cancelled) setOpenWeekdays(days)
+      })
+      .catch(() => {
+        if (!cancelled) setOpenWeekdays([])
+      })
     return () => {
       cancelled = true
     }
