@@ -27,6 +27,14 @@ function buildVersionPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), buildVersionPlugin()],
+  build: {
+    // Vite's default target assumes a fairly recent browser, which shipped
+    // syntax like Object.hasOwn (Chrome 93+) to clients. A budget Android
+    // with an out-of-date System WebView — which is what WhatsApp's in-app
+    // browser uses — would fail to parse the bundle and show a blank page
+    // instead of the booking site. es2019 covers those devices.
+    target: 'es2019',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
