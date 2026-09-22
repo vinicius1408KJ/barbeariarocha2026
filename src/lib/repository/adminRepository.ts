@@ -449,6 +449,15 @@ class SupabaseAdminRepository implements AdminRepository {
 
   async getClientHistory(phone: string): Promise<ClientHistory> {
     const normalized = normalizePhone(phone)
+
+    // The phone number is what identifies a client across appointments, so an
+    // empty one matches every other phone-less appointment — the panel was
+    // showing one client the merged history of all 75 of them ("119ª visita,
+    // gastou R$ 4.744"). With no phone there is no client to look up.
+    if (!normalized) {
+      return { visits: 0, lastVisitDate: null, totalSpentCents: 0, favoriteService: null }
+    }
+
     const { data, error } = await this.client
       .from("appointments")
       .select("date, price_paid_cents, appointment_services(services(name))")
